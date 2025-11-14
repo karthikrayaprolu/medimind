@@ -1,0 +1,13 @@
+fastapi
+uvicorn[standard]
+motor
+redis
+passlib
+bcrypt
+python-multipart
+pydantic
+pydantic-settings
+pymongo
+easyocr
+httpx
+python-dotenv

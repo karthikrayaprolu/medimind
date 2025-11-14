@@ -1,26 +1,44 @@
 import { motion } from "framer-motion";
 import { useInView } from "framer-motion";
 import { useRef } from "react";
-import { ClipboardList, Sparkles, UserCheck } from "lucide-react";
+import { LogIn, UploadCloud, Server, Scan, FileText, CalendarCheck } from "lucide-react";
 
 const steps = [
   {
-    icon: ClipboardList,
-    title: "Enter Symptoms",
-    description: "Describe your health concerns and symptoms in natural language through our intuitive interface.",
+    icon: LogIn,
+    title: "Authenticate Securely",
+    description: "Users land on MediMind, sign in, and receive JWT-backed access so every action is tied to a verified identity.",
     number: "01",
   },
   {
-    icon: Sparkles,
-    title: "Get Smart Recommendations",
-    description: "Our AI processes your input and provides intelligent insights and preliminary recommendations.",
+    icon: UploadCloud,
+    title: "Upload Prescription",
+    description: "Images are optionally compressed on-device, then sent through the /upload-prescription endpoint with processing status updates.",
     number: "02",
   },
   {
-    icon: UserCheck,
-    title: "Connect with Doctor",
-    description: "Get instant access to verified medical professionals for expert consultation and guidance.",
+    icon: Server,
+    title: "Gateway Intake",
+    description: "FastAPI receives the file, user metadata, and timestamps, staging each asset in temporary storage ready for downstream services.",
     number: "03",
+  },
+  {
+    icon: Scan,
+    title: "OCR Extraction",
+    description: "An EasyOCR worker cleans and transcribes handwritten notes into dosage lines, normalizing text and fixing common recognition errors.",
+    number: "04",
+  },
+  {
+    icon: FileText,
+    title: "Structured Understanding",
+    description: "Language reasoning services convert raw text into validated JSON for medicines, dosing cadence, timings, and durations via Pydantic models.",
+    number: "05",
+  },
+  {
+    icon: CalendarCheck,
+    title: "Reminders & History",
+    description: "Schedules populate MongoDB alongside the source image, enabling automated notifications, PDF exports, edits, and longitudinal insights.",
+    number: "06",
   },
 ];
 
@@ -42,7 +60,7 @@ const HowItWorks = () => {
             How It Works
           </h2>
           <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
-            Three simple steps to better healthcare
+            Follow the journey from upload to actionable medication support in six orchestrated stages.
           </p>
         </motion.div>
 

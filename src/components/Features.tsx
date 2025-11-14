@@ -1,29 +1,29 @@
 import { motion } from "framer-motion";
 import { useInView } from "framer-motion";
 import { useRef } from "react";
-import { Brain, Stethoscope, Pill, BarChart3 } from "lucide-react";
+import { UploadCloud, Scan, ListChecks, BellRing } from "lucide-react";
 import { Card } from "@/components/ui/card";
 
 const features = [
   {
-    icon: Brain,
-    title: "AI Symptom Analysis",
-    description: "Advanced AI analyzes your symptoms and provides preliminary insights with high accuracy and speed.",
+    icon: UploadCloud,
+    title: "Seamless Prescription Intake",
+    description: "Authenticated uploads with optional compression keep every handwritten or printed prescription secure from the moment it hits the platform.",
   },
   {
-    icon: Stethoscope,
-    title: "Doctor Consultation",
-    description: "Connect instantly with verified healthcare professionals for expert medical advice and guidance.",
+    icon: Scan,
+    title: "Reliable OCR Extraction",
+    description: "An EasyOCR service cleans and interprets images to capture medicine names, strengths, and instructions with clinician-grade fidelity.",
   },
   {
-    icon: Pill,
-    title: "Medicine & Precaution Suggestions",
-    description: "Get personalized medication guidance and safety tips tailored to your health condition.",
+    icon: ListChecks,
+    title: "Structured Treatment Intelligence",
+    description: "Language understanding services transform unstructured notes into validated JSON ready for scheduling, backed by Pydantic safeguards.",
   },
   {
-    icon: BarChart3,
-    title: "Personal Health Dashboard",
-    description: "Track your health journey with comprehensive analytics and easy-to-understand visualizations.",
+    icon: BellRing,
+    title: "Automated Reminders & History",
+    description: "Dosage patterns become reminder timelines with notifications, audit trails, and searchable medication history stored in MongoDB.",
   },
 ];
 
@@ -65,10 +65,10 @@ const Features = () => {
           className="text-center mb-16"
         >
           <h2 className="text-4xl md:text-5xl font-bold text-foreground mb-4">
-            Powerful Features for Your Health
+            Built for End-to-End Medication Clarity
           </h2>
           <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
-            Everything you need to take control of your healthcare journey in one intelligent platform
+            MediMind captures every step of the prescription lifecycle so patients and caregivers always know what to take, when to take it, and why.
           </p>
         </motion.div>
 

@@ -52,7 +52,7 @@ const Hero = ({ onWaitlistClick }: HeroProps) => {
               transition={{ delay: 0.2, duration: 0.6 }}
               className="inline-block mb-4 px-4 py-2 bg-primary/10 rounded-full"
             >
-              <span className="text-primary font-semibold text-sm">Powered by AI Healthcare Technology</span>
+              <span className="text-primary font-semibold text-sm">Automated Prescription Intelligence</span>
             </motion.div>
 
             <motion.h1
@@ -70,7 +70,7 @@ const Hero = ({ onWaitlistClick }: HeroProps) => {
               transition={{ delay: 0.4, duration: 0.6 }}
               className="text-2xl md:text-3xl font-semibold text-foreground mb-6"
             >
-              Your Intelligent Medical Companion
+              Turn Prescriptions Into Actionable Care Plans
             </motion.h2>
 
             <motion.p
@@ -79,7 +79,7 @@ const Hero = ({ onWaitlistClick }: HeroProps) => {
               transition={{ delay: 0.5, duration: 0.6 }}
               className="text-lg text-muted-foreground mb-8 max-w-xl mx-auto lg:mx-0"
             >
-              Get instant medical assistance, symptom insights, and connect with trusted professionals — powered by smart healthcare technology.
+              Upload any prescription, let MediMind digitize every detail, and receive structured medication schedules with reliable reminders and history tracking.
             </motion.p>
 
             <motion.div

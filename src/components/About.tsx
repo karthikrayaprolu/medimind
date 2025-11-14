@@ -29,10 +29,10 @@ const About = () => {
               About MediMind
             </h2>
             <p className="text-xl text-muted-foreground leading-relaxed mb-8">
-              MediMind bridges the gap between technology and healthcare, making intelligent medical support accessible to everyone. Our mission is to empower individuals with AI-driven health insights while connecting them with trusted medical professionals.
+              MediMind automates the medication journey—from secure login and prescription upload to OCR extraction, structured understanding, and personalized reminder schedules—so every patient stays informed and adherent.
             </p>
             <p className="text-lg text-muted-foreground leading-relaxed">
-              We combine cutting-edge artificial intelligence with human expertise to provide accurate, timely, and personalized healthcare guidance. Your health data is protected with enterprise-grade security, ensuring complete privacy and compliance with healthcare regulations.
+              Behind the scenes, orchestrated FastAPI services, validated data models, and resilient storage pipelines safeguard protected health information while delivering actionable insights in seconds.
             </p>
           </motion.div>
 

@@ -1,10 +1,15 @@
 import { useState, useEffect } from "react";
 import { Menu, X } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
+import { useNavigate } from "react-router-dom";
+import { Button } from "@/components/ui/button";
+import { useAuth } from "@/hooks/use-auth";
 
 const Navigation = () => {
   const [isOpen, setIsOpen] = useState(false);
   const [isScrolled, setIsScrolled] = useState(false);
+  const navigate = useNavigate();
+  const { isAuthenticated } = useAuth();
 
   useEffect(() => {
     const handleScroll = () => {
@@ -57,6 +62,9 @@ const Navigation = () => {
                 {item.label}
               </button>
             ))}
+            <Button size="sm" onClick={() => navigate(isAuthenticated ? "/dashboard" : "/auth")}>
+              {isAuthenticated ? "Go to workspace" : "Access portal"}
+            </Button>
           </div>
 
           {/* Mobile Menu Button */}
@@ -89,6 +97,15 @@ const Navigation = () => {
                   {item.label}
                 </button>
               ))}
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setIsOpen(false);
+                  navigate(isAuthenticated ? "/dashboard" : "/auth");
+                }}
+              >
+                {isAuthenticated ? "Go to workspace" : "Access portal"}
+              </Button>
             </div>
           </motion.div>
         )}
