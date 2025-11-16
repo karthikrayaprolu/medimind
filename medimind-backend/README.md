@@ -454,41 +454,6 @@ medimind-backend/
 
 ---
 
-## ⚙️ Configuration
-
-### **Environment Variables (.env)**
-
-```env
-# MongoDB Configuration
-MONGODB_URL=mongodb+srv://medimind:medimind@medimind.xuy5cng.mongodb.net/?appName=MediMind
-MONGODB_DB_NAME=medimind
-
-# OpenRouter API
-OPENROUTER_API_KEY=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
-OPENROUTER_MODEL=openai/gpt-oss-120b
-
-# Email Configuration
-EMAIL_ENABLED=true
-SMTP_SERVER=smtp.gmail.com
-SMTP_PORT=587
-EMAIL_USER=your-email@gmail.com
-EMAIL_PASSWORD=your-app-password
-EMAIL_FROM=MediMind <your-email@gmail.com>
-
-# Session Configuration
-SESSION_EXPIRE_SECONDS=604800
-
-# CORS Configuration
-CORS_ORIGINS=http://localhost:5173,http://localhost:3000,http://localhost:8080
-
-# Security
-SECRET_KEY=your-secret-key-change-this-in-production
-COOKIE_SECURE=False
-COOKIE_SAMESITE=lax
-```
-
----
-
 ## 🚀 Installation & Setup
 
 ### **1. Install Dependencies**
