@@ -1,3 +1,6 @@
+import warnings
+# Suppress PyTorch pin_memory warning
+warnings.filterwarnings("ignore", message="'pin_memory' argument is set as true but no accelerator is found*")
 import os
 import easyocr
 import json
@@ -60,6 +63,7 @@ def extract_text_from_image(image_path: str) -> str:
     """Extract text from image using EasyOCR"""
     results = reader.readtext(image_path, detail=0)
     text = " ".join(results)
+    # Removed: print(f"Extracted text: {text[:200]}...")
     return text
 
 
@@ -104,7 +108,7 @@ def call_openrouter_llm(text: str):
         raise HTTPException(status_code=500, detail="OpenRouter API not initialized")
 
     try:
-        print("[UPLOAD] Calling OpenRouter for structured extraction...")
+        # Removed: print("[UPLOAD] Calling OpenRouter for structured extraction...")
         completion = client.chat.completions.create(
             model=OPENROUTER_MODEL,
             messages=[{"role": "user", "content": prompt}],
@@ -115,10 +119,10 @@ def call_openrouter_llm(text: str):
             extra_body={}
         )
         reply = completion.choices[0].message.content
-        print(f"[UPLOAD] OpenRouter response: {reply[:200]}...")
+        # Removed: print(f"[UPLOAD] OpenRouter response: {reply[:200]}...")
         return reply
     except Exception as e:
-        print(f"[OPENROUTER] Error: {e}")
+        # Removed: print(f"[OPENROUTER] Error: {e}")
         raise HTTPException(status_code=500, detail=f"OpenRouter LLM processing failed: {str(e)}")
 
 # ==== ROUTES ====
@@ -159,7 +163,7 @@ async def upload_prescription(file: UploadFile = File(...), user_id: str = Form(
             cleaned_json = cleaned_json[3:].strip()
         if cleaned_json.endswith("```"):
             cleaned_json = cleaned_json[:-3].strip()
-        print(f"Cleaned JSON: {cleaned_json}")
+        # Removed: print(f"Cleaned JSON: {cleaned_json}")
 
         # Save prescription
         prescription_doc = {
@@ -187,7 +191,7 @@ async def upload_prescription(file: UploadFile = File(...), user_id: str = Form(
                         medicine["timings"] = [t for t in timings if t in valid_timings]
                         if not medicine["timings"]:
                             medicine["timings"] = ["morning"]
-            print(f"Cleaned medicines: {medicines}")
+            # Removed: print(f"Cleaned medicines: {medicines}")
         except Exception as e:
             print(f"[OPENROUTER] JSON parsing error: {e}")
             print(f"[OPENROUTER] Raw response: {cleaned_json}")
@@ -217,7 +221,7 @@ async def upload_prescription(file: UploadFile = File(...), user_id: str = Form(
                 }
                 schedule_id = sync_schedules.insert_one(schedule_doc).inserted_id
                 schedule_ids.append(str(schedule_id))
-                print(f"[SCHEDULE] Created schedule for {medicine_name} with timings: {timings}")
+                # Removed: print(f"[SCHEDULE] Created schedule for {medicine_name} with timings: {timings}")
 
         # Clean up temp file
         try:
