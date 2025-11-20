@@ -1,8 +1,7 @@
-import { motion } from "framer-motion";
-import { useInView } from "framer-motion";
-import { useRef } from "react";
 import { UploadCloud, Scan, ListChecks, BellRing } from "lucide-react";
 import { Card } from "@/components/ui/card";
+import ScrollReveal from "@/components/ScrollReveal";
+import ParallaxSection from "@/components/ParallaxSection";
 
 const features = [
   {
@@ -28,17 +27,10 @@ const features = [
 ];
 
 const FeatureCard = ({ feature, index }: { feature: typeof features[0]; index: number }) => {
-  const ref = useRef(null);
-  const isInView = useInView(ref, { once: true, margin: "-100px" });
   const Icon = feature.icon;
 
   return (
-    <motion.div
-      ref={ref}
-      initial={{ opacity: 0, y: 50 }}
-      animate={isInView ? { opacity: 1, y: 0 } : { opacity: 0, y: 50 }}
-      transition={{ duration: 0.5, delay: index * 0.1 }}
-    >
+    <ScrollReveal animation="fade-up" delay={index * 0.1} className="h-full">
       <Card className="p-6 h-full bg-card hover:shadow-lg transition-all duration-300 border border-border group hover:border-primary/50">
         <div className="mb-4 w-12 h-12 bg-gradient-to-br from-primary to-secondary rounded-lg flex items-center justify-center group-hover:scale-110 transition-transform duration-300">
           <Icon className="w-6 h-6 text-white" />
@@ -46,35 +38,34 @@ const FeatureCard = ({ feature, index }: { feature: typeof features[0]; index: n
         <h3 className="text-xl font-bold text-foreground mb-3">{feature.title}</h3>
         <p className="text-muted-foreground leading-relaxed">{feature.description}</p>
       </Card>
-    </motion.div>
+    </ScrollReveal>
   );
 };
 
 const Features = () => {
-  const ref = useRef(null);
-  const isInView = useInView(ref, { once: true, margin: "-100px" });
-
   return (
     <section id="features" className="py-20 bg-background">
       <div className="container mx-auto px-4 sm:px-6 lg:px-8">
-        <motion.div
-          ref={ref}
-          initial={{ opacity: 0, y: 30 }}
-          animate={isInView ? { opacity: 1, y: 0 } : { opacity: 0, y: 30 }}
-          transition={{ duration: 0.6 }}
-          className="text-center mb-16"
-        >
-          <h2 className="text-4xl md:text-5xl font-bold text-foreground mb-4">
-            Built for End-to-End Medication Clarity
-          </h2>
-          <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
-            MediMind captures every step of the prescription lifecycle so patients and caregivers always know what to take, when to take it, and why.
-          </p>
-        </motion.div>
+        <ScrollReveal animation="fade-up" className="mx-auto">
+          <div className="text-center mb-16">
+            <h2 className="text-4xl md:text-5xl font-bold text-foreground mb-4">
+              Built for End-to-End Medication Clarity
+            </h2>
+            <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
+              MediMind captures every step of the prescription lifecycle so patients and caregivers always know what to take, when to take it, and why.
+            </p>
+          </div>
+        </ScrollReveal>
 
         <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
           {features.map((feature, index) => (
-            <FeatureCard key={index} feature={feature} index={index} />
+            <div key={index} className={index % 2 === 0 ? "mt-0" : "mt-0 md:mt-8 lg:mt-12"}>
+              {/* Add a slight offset to even/odd columns for a staggered look, 
+                   or use ParallaxSection for dynamic movement */}
+              <ParallaxSection speed={index % 2 === 0 ? 0 : 0.05}>
+                <FeatureCard feature={feature} index={index} />
+              </ParallaxSection>
+            </div>
           ))}
         </div>
       </div>

@@ -12,6 +12,7 @@ import { AuthProvider } from "@/contexts/AuthContext";
 import { useAuth } from "@/hooks/use-auth";
 import ProtectedRoute from "@/components/ProtectedRoute";
 import SmoothScroll from "@/components/SmoothScroll";
+import { ShaderBackground } from "@/components/ShaderBackground";
 
 const queryClient = new QueryClient();
 
@@ -31,6 +32,7 @@ const App = () => (
         <Sonner />
         <AuthProvider>
           <BrowserRouter>
+            <ShaderBackground />
             <SmoothScroll>
               <Routes>
                 <Route path="/" element={<LandingRoute />} />

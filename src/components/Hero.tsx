@@ -8,7 +8,7 @@ const Hero = () => {
   const { scrollToSection } = useSmoothScroll();
 
   return (
-    <section id="home" className="relative min-h-screen flex items-center overflow-hidden bg-gradient-to-b from-background via-muted/30 to-background pt-20">
+    <section id="home" className="relative min-h-screen flex items-center overflow-hidden bg-gradient-to-b from-background via-muted/30 to-background pt-20 dark:bg-background dark:bg-none">
       {/* Floating Background Elements */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
         <motion.div
