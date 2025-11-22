@@ -108,7 +108,7 @@ export const prescriptionApi = {
     success: boolean;
     prescription_id: string;
     schedule_ids: string[];
-    medicines: any[];
+    medicines: unknown[];
     message: string;
   }> {
     const formData = new FormData();
