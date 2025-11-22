@@ -183,7 +183,7 @@ const Dashboard = () => {
 
       {/* Floating Navigation Header */}
       <header className="fixed top-4 left-1/2 -translate-x-1/2 z-50 w-[95%] max-w-6xl">
-        <div className="rounded-full bg-[#2a2d3a]/95 backdrop-blur-xl border border-white/10 shadow-2xl px-8 py-4">
+        <div className="rounded-full bg-black/30 dark:bg-[#2a2d3a]/60 backdrop-blur-lg border border-white/20 dark:border-white/10 shadow-xl px-8 py-4 transition-all duration-300" style={{ boxShadow: '0 8px 32px 0 rgba(31, 38, 135, 0.15)' }}>
           <div className="flex items-center justify-between">
             {/* Logo & Title */}
             <div className="flex items-center gap-3">
@@ -191,8 +191,8 @@ const Dashboard = () => {
                 <Pill className="h-5 w-5 text-white" />
               </div>
               <div>
-                <h1 className="text-lg font-bold text-white">MediMind Workspace</h1>
-                <p className="text-xs text-white/50 hidden sm:block">Prescription management powered by AI</p>
+                <h1 className="text-lg font-bold text-white dark:text-white">MediMind Workspace</h1>
+                <p className="text-xs text-white/80 dark:text-white/50 hidden sm:block">Prescription management powered by AI</p>
               </div>
             </div>
 

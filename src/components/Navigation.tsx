@@ -40,14 +40,14 @@ const Navigation = () => {
     <>
       {/* Desktop Navigation */}
       <nav className="fixed top-4 left-1/2 -translate-x-1/2 z-50 w-[95%] max-w-6xl hidden md:block">
-        <div className="rounded-full bg-[#2a2d3a]/95 backdrop-blur-xl border border-white/10 shadow-2xl px-8 py-4">
+        <div className="rounded-full bg-black/30 dark:bg-[#2a2d3a]/60 backdrop-blur-lg border border-white/20 dark:border-white/10 shadow-xl px-8 py-4 transition-all duration-300" style={{ boxShadow: '0 8px 32px 0 rgba(31, 38, 135, 0.15)' }}>
           <div className="flex items-center justify-between">
             {/* Logo */}
             <div className="flex items-center gap-3 cursor-pointer" onClick={() => scrollToSection("home")}>
               <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center">
                 <Pill className="h-5 w-5 text-white" />
               </div>
-              <span className="text-lg font-bold text-white">MediMind</span>
+              <span className="text-lg font-bold text-white dark:text-white">MediMind</span>
             </div>
 
             {/* Menu Items */}
@@ -77,14 +77,14 @@ const Navigation = () => {
 
       {/* Mobile Navigation */}
       <nav className="fixed top-4 left-4 right-4 z-50 md:hidden">
-        <div className="rounded-full bg-[#2a2d3a]/95 backdrop-blur-xl border border-white/10 shadow-2xl px-6 py-3">
+        <div className="rounded-full bg-black/30 dark:bg-[#2a2d3a]/60 backdrop-blur-lg border border-white/20 dark:border-white/10 shadow-xl px-6 py-3 transition-all duration-300" style={{ boxShadow: '0 8px 32px 0 rgba(31, 38, 135, 0.15)' }}>
           <div className="flex items-center justify-between">
             {/* Logo */}
             <div className="flex items-center gap-2 cursor-pointer" onClick={() => scrollToSection("home")}>
               <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center">
                 <Pill className="h-5 w-5 text-white" />
               </div>
-              <span className="text-lg font-bold text-white">MediMind</span>
+              <span className="text-lg font-bold text-white dark:text-white">MediMind</span>
             </div>
 
             {/* Mobile Menu Button */}
@@ -106,7 +106,7 @@ const Navigation = () => {
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -10 }}
               transition={{ duration: 0.2 }}
-              className="mt-2 rounded-2xl bg-[#2a2d3a]/95 backdrop-blur-xl border border-white/10 shadow-2xl p-6"
+              className="mt-2 rounded-2xl bg-black/30 dark:bg-[#2a2d3a]/60 backdrop-blur-lg border border-white/20 dark:border-white/10 shadow-xl p-6 transition-all duration-300" style={{ boxShadow: '0 8px 32px 0 rgba(31, 38, 135, 0.15)' }}
             >
               <div className="flex flex-col gap-4">
                 {menuItems.map((item) => (
