@@ -14,6 +14,23 @@ dist-ssr
 .env
 package-lock.json
 
+# Firebase/Google credentials (secrets - DO NOT COMMIT)
+firebase_credentials.json
+**/firebase_credentials.json
+google-services.json
+**/google-services.json
+GoogleService-Info.plist
+
+# Android build files
+android/app/build/
+android/build/
+android/capacitor-cordova-android-plugins/build/
+android/.gradle/
+android/local.properties
+**/build/
+*.apk
+*.aab
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json

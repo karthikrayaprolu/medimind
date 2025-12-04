@@ -1,0 +1,24 @@
+{
+	"appId": "com.medimind.app",
+	"appName": "MediMind",
+	"webDir": "dist",
+	"server": {
+		"androidScheme": "https",
+		"cleartext": true
+	},
+	"plugins": {
+		"PushNotifications": {
+			"presentationOptions": [
+				"badge",
+				"sound",
+				"alert"
+			]
+		}
+	},
+	"android": {
+		"allowMixedContent": true
+	},
+	"ios": {
+		"contentInset": "automatic"
+	}
+}

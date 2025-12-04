@@ -19,9 +19,27 @@ class UserLogin(BaseModel):
     email: EmailStr
     password: str
 
+class FcmTokenUpdate(BaseModel):
+    fcm_token: str
+
+# Helper to get session from cookie or Authorization header
+def get_session_id_from_request(request: Request) -> str | None:
+    """Get session ID from cookie or Authorization header"""
+    # First try cookie (for web)
+    session_id = request.cookies.get("session_id")
+    if session_id:
+        return session_id
+    
+    # Then try Authorization header (for mobile apps)
+    auth_header = request.headers.get("Authorization")
+    if auth_header and auth_header.startswith("Bearer "):
+        return auth_header[7:]  # Remove "Bearer " prefix
+    
+    return None
+
 # Middleware for protected routes
 async def require_user(request: Request):
-    session_id = request.cookies.get("session_id")
+    session_id = get_session_id_from_request(request)
     if not session_id:
         raise HTTPException(status_code=401, detail="Not logged in")
 
@@ -46,7 +64,8 @@ async def signup(user: UserSignup):
             "password": hash_password(user.password),
             "fullName": user.fullName,
             "created_at": datetime.utcnow(),
-            "last_login": datetime.utcnow()
+            "last_login": datetime.utcnow(),
+            "fcm_token": None  # For push notifications
         }
 
         # Insert user
@@ -56,12 +75,15 @@ async def signup(user: UserSignup):
         # Create session
         session_id = await create_session(user_id)
 
+        # Return session_id in body for mobile apps (Authorization header)
         response = JSONResponse({
             "success": True,
             "message": "Signup successful",
             "user_id": user_id,
-            "email": user.email
+            "email": user.email,
+            "session_id": session_id  # For mobile apps
         })
+        # Also set cookie for web apps
         response.set_cookie(
             key="session_id",
             value=session_id,
@@ -97,13 +119,16 @@ async def login(data: UserLogin):
         # Create Redis session
         session_id = await create_session(str(user["_id"]))
 
+        # Return session_id in body for mobile apps (Authorization header)
         response = JSONResponse({
             "success": True,
             "message": "Login successful",
             "user_id": str(user["_id"]),
             "email": user["email"],
-            "fullName": user.get("fullName")
+            "fullName": user.get("fullName"),
+            "session_id": session_id  # For mobile apps
         })
+        # Also set cookie for web apps
         response.set_cookie(
             key="session_id",
             value=session_id,
@@ -122,13 +147,27 @@ async def login(data: UserLogin):
 
 @router.post("/logout")
 async def logout(request: Request):
-    session_id = request.cookies.get("session_id")
+    session_id = get_session_id_from_request(request)
     if session_id:
         await delete_session(session_id)
 
     response = JSONResponse({"message": "Logged out", "success": True})
     response.delete_cookie("session_id")
     return response
+
+
+@router.post("/fcm-token")
+async def update_fcm_token(data: FcmTokenUpdate, user_id: str = Depends(require_user)):
+    """Update user's FCM token for push notifications"""
+    try:
+        sync_users.update_one(
+            {"_id": ObjectId(user_id)},
+            {"$set": {"fcm_token": data.fcm_token, "fcm_updated_at": datetime.utcnow()}}
+        )
+        return {"success": True, "message": "FCM token updated"}
+    except Exception as e:
+        print(f"FCM token update error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 @router.get("/me")

@@ -6,6 +6,7 @@ from bson import ObjectId
 
 from db.mongo import sync_schedules, sync_users
 from notification.service import send_medication_reminder
+from notification.fcm import send_medication_reminder_push
 
 scheduler = BackgroundScheduler()
 
@@ -48,15 +49,30 @@ def check_and_send_reminders():
                     print(f"[SCHEDULER] Skipping schedule {schedule['_id']}: No user email")
                     continue
                 
-                # Send reminder
-                success = send_medication_reminder(
+                # Send email reminder
+                email_success = send_medication_reminder(
                     to_email=user["email"],
                     medicine_name=schedule["medicine_name"],
                     dosage=schedule["dosage"],
                     timing=timing_period
                 )
                 
-                if success:
+                # Send push notification if user has FCM token
+                push_success = False
+                fcm_token = user.get("fcm_token")
+                if fcm_token:
+                    push_success = send_medication_reminder_push(
+                        fcm_token=fcm_token,
+                        medicine_name=schedule["medicine_name"],
+                        dosage=schedule["dosage"],
+                        timing=timing_period
+                    )
+                    if push_success:
+                        print(f"[SCHEDULER] Sent push notification for {schedule['medicine_name']}")
+                    else:
+                        print(f"[SCHEDULER] Push notification failed for {schedule['medicine_name']}")
+                
+                if email_success or push_success:
                     # Update last_reminder_sent timestamp
                     sync_schedules.update_one(
                         {"_id": schedule["_id"]},
@@ -64,7 +80,7 @@ def check_and_send_reminders():
                     )
                     print(f"[SCHEDULER] Sent reminder for {schedule['medicine_name']} to {user['email']}")
                 else:
-                    print(f"[SCHEDULER] Failed to send reminder for {schedule['medicine_name']}")
+                    print(f"[SCHEDULER] Failed to send any reminder for {schedule['medicine_name']}")
                     
             except Exception as e:
                 print(f"[SCHEDULER] Error processing schedule {schedule.get('_id')}: {str(e)}")

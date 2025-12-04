@@ -1,5 +1,47 @@
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:8000";
 
+// Session token management for mobile apps (Capacitor)
+const SESSION_KEY = "medimind-session-token";
+
+export const getSessionToken = (): string | null => {
+  if (typeof window === "undefined") return null;
+  try {
+    return localStorage.getItem(SESSION_KEY);
+  } catch {
+    return null;
+  }
+};
+
+export const setSessionToken = (token: string): void => {
+  if (typeof window === "undefined") return;
+  try {
+    localStorage.setItem(SESSION_KEY, token);
+  } catch (e) {
+    console.error("Failed to save session token", e);
+  }
+};
+
+export const clearSessionToken = (): void => {
+  if (typeof window === "undefined") return;
+  try {
+    localStorage.removeItem(SESSION_KEY);
+  } catch (e) {
+    console.error("Failed to clear session token", e);
+  }
+};
+
+// Get auth headers for API requests
+export const getAuthHeaders = (): HeadersInit => {
+  const token = getSessionToken();
+  const headers: HeadersInit = {
+    "Content-Type": "application/json",
+  };
+  if (token) {
+    headers["Authorization"] = `Bearer ${token}`;
+  }
+  return headers;
+};
+
 interface LoginRequest {
   email: string;
   password: string;
@@ -17,6 +59,7 @@ interface AuthResponse {
   user_id: string;
   email: string;
   fullName?: string;
+  session_id?: string;
   error?: string;
 }
 
@@ -47,7 +90,6 @@ export const authApi = {
       headers: {
         "Content-Type": "application/json",
       },
-      credentials: "include",
       body: JSON.stringify(data),
     });
 
@@ -55,6 +97,11 @@ export const authApi = {
     
     if (!response.ok) {
       throw new Error(result.error || result.detail || "Login failed");
+    }
+
+    // Store session token for mobile apps
+    if (result.session_id) {
+      setSessionToken(result.session_id);
     }
 
     return result;
@@ -66,7 +113,6 @@ export const authApi = {
       headers: {
         "Content-Type": "application/json",
       },
-      credentials: "include",
       body: JSON.stringify(data),
     });
 
@@ -76,14 +122,22 @@ export const authApi = {
       throw new Error(result.error || result.detail || "Signup failed");
     }
 
+    // Store session token for mobile apps
+    if (result.session_id) {
+      setSessionToken(result.session_id);
+    }
+
     return result;
   },
 
   async logout(): Promise<void> {
     const response = await fetch(`${API_BASE_URL}/auth/logout`, {
       method: "POST",
-      credentials: "include",
+      headers: getAuthHeaders(),
     });
+
+    // Clear session token regardless of response
+    clearSessionToken();
 
     if (!response.ok) {
       throw new Error("Logout failed");
@@ -92,11 +146,25 @@ export const authApi = {
 
   async me(): Promise<{ user_id: string; email: string; fullName?: string }> {
     const response = await fetch(`${API_BASE_URL}/auth/me`, {
-      credentials: "include",
+      headers: getAuthHeaders(),
     });
 
     if (!response.ok) {
       throw new Error("Failed to fetch user info");
+    }
+
+    return response.json();
+  },
+
+  async updateFcmToken(token: string): Promise<{ success: boolean }> {
+    const response = await fetch(`${API_BASE_URL}/auth/fcm-token`, {
+      method: "POST",
+      headers: getAuthHeaders(),
+      body: JSON.stringify({ fcm_token: token }),
+    });
+
+    if (!response.ok) {
+      throw new Error("Failed to update FCM token");
     }
 
     return response.json();
@@ -115,9 +183,15 @@ export const prescriptionApi = {
     formData.append("file", file);
     formData.append("user_id", userId);
 
+    const token = getSessionToken();
+    const headers: HeadersInit = {};
+    if (token) {
+      headers["Authorization"] = `Bearer ${token}`;
+    }
+
     const response = await fetch(`${API_BASE_URL}/api/upload-prescription`, {
       method: "POST",
-      credentials: "include",
+      headers,
       body: formData,
     });
 
@@ -132,7 +206,7 @@ export const prescriptionApi = {
 
   async getUserSchedules(userId: string): Promise<Schedule[]> {
     const response = await fetch(`${API_BASE_URL}/api/user/${userId}/schedules`, {
-      credentials: "include",
+      headers: getAuthHeaders(),
     });
 
     if (!response.ok) {
@@ -144,7 +218,7 @@ export const prescriptionApi = {
 
   async getUserPrescriptions(userId: string): Promise<Prescription[]> {
     const response = await fetch(`${API_BASE_URL}/api/user/${userId}/prescriptions`, {
-      credentials: "include",
+      headers: getAuthHeaders(),
     });
 
     if (!response.ok) {
@@ -157,10 +231,7 @@ export const prescriptionApi = {
   async toggleSchedule(scheduleId: string, enabled: boolean): Promise<{ success: boolean; message: string }> {
     const response = await fetch(`${API_BASE_URL}/api/toggle-schedule`, {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      credentials: "include",
+      headers: getAuthHeaders(),
       body: JSON.stringify({ schedule_id: scheduleId, enabled }),
     });
 
@@ -176,7 +247,7 @@ export const prescriptionApi = {
   async deleteSchedule(scheduleId: string): Promise<{ success: boolean; message: string }> {
     const response = await fetch(`${API_BASE_URL}/api/schedule/${scheduleId}`, {
       method: "DELETE",
-      credentials: "include",
+      headers: getAuthHeaders(),
     });
 
     const result = await response.json();

@@ -9,6 +9,7 @@ import { Card } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/use-auth";
 import { cn } from "@/lib/utils";
+import { useAuthContext } from "@/contexts/AuthContext";
 
 const tabConfig = [
   { key: "login", label: "Login", icon: LogIn },
@@ -21,6 +22,7 @@ const AuthPage = () => {
   const [mode, setMode] = useState<AuthMode>("login");
   const [isLoading, setIsLoading] = useState(false);
   const { login } = useAuth();
+  const { registerPushNotifications } = useAuthContext();
   const { toast } = useToast();
   const navigate = useNavigate();
   const location = useLocation();
@@ -67,6 +69,10 @@ const AuthPage = () => {
       if (mode === "login") {
         const response = await authApi.login({ email, password });
         login(response.user_id);
+        
+        // Register push notifications after successful login
+        registerPushNotifications().catch(console.error);
+        
         toast({
           title: "Welcome back!",
           description: `Logged in as ${response.email}`,
@@ -75,6 +81,10 @@ const AuthPage = () => {
         const fullName = String(formData.get("fullName") ?? "").trim();
         const response = await authApi.signup({ email, password, fullName });
         login(response.user_id);
+        
+        // Register push notifications after successful signup
+        registerPushNotifications().catch(console.error);
+        
         toast({
           title: "Account created!",
           description: "Your account has been created successfully.",

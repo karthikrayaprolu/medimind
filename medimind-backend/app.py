@@ -4,6 +4,7 @@ from contextlib import asynccontextmanager
 from auth.routes import router as auth_router
 from prescription.routes import router as prescription_router
 from scheduler.reminder_scheduler import start_scheduler, stop_scheduler, get_scheduler_status
+from notification.fcm import initialize_firebase
 import os
 from dotenv import load_dotenv
 
@@ -15,6 +16,13 @@ async def lifespan(app: FastAPI):
     """Handle startup and shutdown events"""
     # Startup
     print("[APP] Starting MediMind Backend API...")
+    
+    # Initialize Firebase for push notifications
+    if initialize_firebase():
+        print("[APP] Firebase initialized for push notifications")
+    else:
+        print("[APP] Firebase not configured - push notifications disabled")
+    
     start_scheduler()
     yield
     # Shutdown
@@ -28,15 +36,12 @@ app = FastAPI(
     lifespan=lifespan
 )
 
-# CORS Configuration
-CORS_ORIGINS = os.getenv("CORS_ORIGINS", "http://localhost:5173").split(",")
-# Strip whitespace from origins
-CORS_ORIGINS = [origin.strip() for origin in CORS_ORIGINS]
-
+# CORS Configuration - Allow all origins for mobile app support
+# Note: When allow_credentials=False, we use Authorization header instead of cookies
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=CORS_ORIGINS,
-    allow_credentials=True,
+    allow_origins=["*"],  # Allow all origins for Capacitor mobile app
+    allow_credentials=False,  # Must be False when using allow_origins=["*"]
     allow_methods=["*"],
     allow_headers=["*"],
     expose_headers=["*"],

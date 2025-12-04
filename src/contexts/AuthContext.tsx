@@ -1,10 +1,14 @@
-import { createContext, useContext, useEffect, useMemo, useState, ReactNode } from "react";
+import { createContext, useContext, useEffect, useMemo, useState, ReactNode, useCallback } from "react";
+import { Capacitor } from "@capacitor/core";
+import { usePushNotifications } from "@/hooks/use-push-notifications";
+import { authApi } from "@/lib/api";
 
 interface AuthContextValue {
   isAuthenticated: boolean;
   token: string | null;
   login: (token: string) => void;
   logout: () => void;
+  registerPushNotifications: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextValue | undefined>(undefined);
@@ -25,6 +29,7 @@ const getStoredToken = () => {
 
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [token, setToken] = useState<string | null>(() => getStoredToken());
+  const { registerNotifications, fcmToken } = usePushNotifications();
 
   useEffect(() => {
     if (typeof window === "undefined") {
@@ -41,14 +46,41 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     }
   }, [token]);
 
+  // Send FCM token to backend when it changes
+  useEffect(() => {
+    if (fcmToken && token) {
+      authApi.updateFcmToken(fcmToken).catch((err) => {
+        console.error("Failed to update FCM token on backend:", err);
+      });
+    }
+  }, [fcmToken, token]);
+
+  const registerPushNotifications = useCallback(async () => {
+    if (!Capacitor.isNativePlatform()) {
+      console.log("[Push] Not a native platform, skipping push registration");
+      return;
+    }
+
+    try {
+      const registeredToken = await registerNotifications();
+      if (registeredToken) {
+        await authApi.updateFcmToken(registeredToken);
+        console.log("[Push] FCM token registered with backend");
+      }
+    } catch (error) {
+      console.error("[Push] Failed to register push notifications:", error);
+    }
+  }, [registerNotifications]);
+
   const value = useMemo(
     () => ({
       isAuthenticated: Boolean(token),
       token,
       login: (nextToken: string) => setToken(nextToken),
       logout: () => setToken(null),
+      registerPushNotifications,
     }),
-    [token],
+    [token, registerPushNotifications],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
