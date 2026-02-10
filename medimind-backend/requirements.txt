@@ -8,9 +8,8 @@ python-multipart
 pydantic
 pydantic-settings
 pymongo
-easyocr
+sarvamai
 python-dotenv
 apscheduler
 google-genai
 pydantic[email]
-openai

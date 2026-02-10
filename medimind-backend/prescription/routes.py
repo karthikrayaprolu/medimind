@@ -1,10 +1,11 @@
 import warnings
-# Suppress PyTorch pin_memory warning
-warnings.filterwarnings("ignore", message="'pin_memory' argument is set as true but no accelerator is found*")
+# Suppress warnings
+warnings.filterwarnings("ignore")
 import os
-import easyocr
 import json
 import re
+import zipfile
+import shutil
 from datetime import datetime
 from typing import List
 from fastapi import APIRouter, UploadFile, File, Form, HTTPException
@@ -12,32 +13,26 @@ from fastapi.responses import JSONResponse
 from bson import ObjectId
 from dotenv import load_dotenv
 from pydantic import BaseModel
-from openai import OpenAI
+from sarvamai import SarvamAI
 
 from db.mongo import sync_prescriptions, sync_schedules, sync_users
 
 load_dotenv()
 
-# Set OpenRouter API key and model from environment
-OPENROUTER_API_KEY = os.getenv("OPENROUTER_API_KEY", "")
-OPENROUTER_MODEL = os.getenv("OPENROUTER_MODEL", "tngtech/deepseek-r1t2-chimera:free")
+# Set Sarvam AI API key from environment
+SARVAM_API_KEY = os.getenv("SARVAM_API_KEY", "")
 
-# Initialize OpenAI client for OpenRouter
+# Initialize Sarvam AI client
 try:
-    client = OpenAI(
-        base_url="https://openrouter.ai/api/v1",
-        api_key=OPENROUTER_API_KEY,
+    sarvam_client = SarvamAI(
+        api_subscription_key=SARVAM_API_KEY
     )
-    print("[INIT] OpenRouter API initialized")
-    print(f"[INIT] Model: {OPENROUTER_MODEL}")
+    print("[INIT] Sarvam AI Vision initialized")
 except Exception as e:
-    print(f"[INIT] Failed to initialize OpenRouter client: {e}")
-    client = None
+    print(f"[INIT] Failed to initialize Sarvam AI client: {e}")
+    sarvam_client = None
 
 router = APIRouter()
-
-# OCR reader (loads once)
-reader = easyocr.Reader(["en"])
 
 # ==== PYDANTIC MODELS ====
 class MedicineSchedule(BaseModel):
@@ -59,118 +54,242 @@ def serialize_doc(doc):
         doc["_id"] = str(doc["_id"])
     return doc
 
-def extract_text_from_image(image_path: str) -> str:
-    """Extract text from image using EasyOCR"""
-    results = reader.readtext(image_path, detail=0)
-    text = " ".join(results)
-    # Removed: print(f"Extracted text: {text[:200]}...")
-    return text
-
-
-# === OPENROUTER LLM PRESCRIPTION PARSER ===
-def call_openrouter_llm(text: str):
-    prompt = (
-        "You are an expert medical prescription parsing engine with 20+ years of experience in\n"
-        "clinical pharmacy, medical terminology, and medication-instruction interpretation.\n\n"
-        "Your task is to extract **structured JSON data** from a prescription text or extracted OCR text.\n\n"
-        "--------------------------------------------\n"
-        "### REQUIRED OUTPUT FORMAT (STRICT)\n"
-        "Return ONLY a JSON array. No markdown, no comments.\n\n"
-        "Each medicine must be formatted as:\n"
-        "{{\n"
-        "  \"medicine_name\": \"...\",\n"
-        "  \"dosage\": \"...\",\n"
-        "  \"quantity\": \"...\",\n"
-        "  \"frequency\": \"...\",\n"
-        "  \"timings\": [\"morning\", \"afternoon\", \"evening\", \"night\"]\n"
-        "}}\n"
-        "--------------------------------------------\n\n"
-        "### FIELD RULES (MANDATORY)\n"
-        "1. If ANY FIELD is missing or unclear → use string \"N/A\".\n"
-        "2. \"timings\" must ALWAYS be an ARRAY containing ONLY:\n"
-        "   [\"morning\", \"afternoon\", \"evening\", \"night\"]\n"
-        "3. If timing cannot be inferred → default to [\"morning\"].\n"
-        "4. DO NOT leave any field null, empty, or undefined.\n\n"
-        "--------------------------------------------\n"
-        "### FREQUENCY INTERPRETATION LOGIC\n"
-        "Use these rules to infer correct frequency:\n\n"
-        "- \"t.i.d.\" or \"tid\" or \"three times a day\" → \"thrice a day\"\n"
-        "- \"b.i.d.\" or \"bid\" or \"two times a day\" → \"twice a day\"\n"
-        "- \"q.i.d.\" or \"qid\" → \"four times a day\"\n"
-        "- \"q.d.\" or \"qd\" → \"once a day\"\n"
-        "- \"a.c.\" (before meals):\n"
-        "    - assume timing = [\"morning\", \"afternoon\", \"evening\"]\n"
-        "- \"p.c.\" (after meals):\n"
-        "    - assume timing = [\"morning\", \"afternoon\", \"evening\"]\n\n"
-        "If unclear:\n"
-        "- thrice a day → [\"morning\", \"afternoon\", \"evening\"]\n"
-        "- twice a day → [\"morning\", \"evening\"]\n"
-        "- once a day → [\"morning\"]\n\n"
-        "--------------------------------------------\n"
-        "### WEB KNOWLEDGE RULE (VERY IMPORTANT)\n"
-        "If the prescription text is missing information such as:\n"
-        "- standard dosage form\n"
-        "- standard quantity\n"
-        "- default adult dosage\n"
-        "- common usage frequency\n"
-        "- common schedule for that medicine\n\n"
-        "You MUST:\n"
-        "1. Use authoritative medical knowledge you already have access to  \n"
-        "   (e.g., widely accepted standard dosing schedules found on the web).\n"
-        "2. Use your web-learned knowledge to fill in any N/A fields wherever possible, especially for medical safety and completeness.\n"
-        "3. Only use 'N/A' if you are absolutely unable to infer the value from any authoritative or web-learned source.\n"
-        "4. BUT NEVER hallucinate details that contradict the prescription.\n"
-        "5. If the drug is unknown or ambiguous → set unclear fields to \"N/A\".\n\n"
-        "Example:\n"
-        "If the prescription says only “Paracetamol” but dose missing →  \n"
-        "search your internal medical knowledge (web-learned data) and infer typical values:\n"
-        "- dosage: \"500mg\" (if commonly standard)\n"
-        "- frequency: \"thrice a day\"\n"
-        "- timings: [\"morning\", \"afternoon\", \"evening\"]\n\n"
-        "If inference cannot be done safely → use \"N/A\".\n\n"
-        "--------------------------------------------\n"
-        "### PARSING RULES FOR PRESCRIPTION FORMAT\n"
-        "You must identify correctly:\n"
-        "- superscription (Rx)\n"
-        "- inscription (medicine list)\n"
-        "- subscription (preparation instructions)\n"
-        "- signa (sig: dosage instructions)\n\n"
-        "Focus ONLY on medication data. Ignore doctor name, date, patient details.\n\n"
-        "--------------------------------------------\n"
-        "### FINAL INSTRUCTIONS\n"
-        "- Output MUST be valid JSON.\n"
-        "- Every medicine must be a separate object.\n"
-        "- Never add explanations or text outside JSON.\n\n"
-        "--------------------------------------------\n\n"
-        f"Prescription text:\n{text}\n"
-    )
-
-    if not client:
-        raise HTTPException(status_code=500, detail="OpenRouter API not initialized")
-
+def extract_text_from_image_with_sarvam(image_path: str) -> str:
+    """Extract text from image using Sarvam AI Vision"""
+    if not sarvam_client:
+        raise HTTPException(status_code=500, detail="Sarvam AI client not initialized")
+    
+    temp_zip_path = None
+    
     try:
-        # Removed: print("[UPLOAD] Calling OpenRouter for structured extraction...")
-        completion = client.chat.completions.create(
-            model=OPENROUTER_MODEL,
-            messages=[{"role": "user", "content": prompt}],
-            extra_headers={
-                "HTTP-Referer": "http://localhost:8000",
-                "X-Title": "MediMind Prescription Parser",
-            },
-            extra_body={}
+        print(f"[SARVAM] Creating document intelligence job for: {image_path}")
+        
+        # Check if file is an image (JPG, PNG, JPEG) - needs to be zipped
+        file_ext = os.path.splitext(image_path)[1].lower()
+        upload_path = image_path
+        
+        if file_ext in ['.jpg', '.jpeg', '.png']:
+            # Create a ZIP file containing the image
+            temp_zip_path = f"{os.path.splitext(image_path)[0]}_archive.zip"
+            print(f"[SARVAM] Creating ZIP archive: {temp_zip_path}")
+            
+            with zipfile.ZipFile(temp_zip_path, 'w', zipfile.ZIP_DEFLATED) as zipf:
+                zipf.write(image_path, os.path.basename(image_path))
+            
+            upload_path = temp_zip_path
+            print(f"[SARVAM] Image packaged into ZIP for upload")
+        
+        # Create a document intelligence job
+        job = sarvam_client.document_intelligence.create_job(
+            language="en-IN",  # Default to English, can be changed based on requirements
+            output_format="md"  # Markdown format for easier parsing
         )
-        reply = completion.choices[0].message.content
-        # Removed: print(f"[UPLOAD] OpenRouter response: {reply[:200]}...")
-        return reply
+        print(f"[SARVAM] Job created: {job.job_id}")
+        
+        # Upload document (ZIP or PDF)
+        job.upload_file(upload_path)
+        print("[SARVAM] File uploaded")
+        
+        # Start processing
+        job.start()
+        print("[SARVAM] Job started")
+        
+        # Wait for completion
+        status = job.wait_until_complete()
+        print(f"[SARVAM] Job completed with state: {status.job_state}")
+        
+        # Download output
+        output_path = f"./sarvam_output_{job.job_id}.zip"
+        job.download_output(output_path)
+        print(f"[SARVAM] Output saved to {output_path}")
+        
+        # Extract the ZIP file and read the markdown content
+        extracted_text = ""
+        try:
+            with zipfile.ZipFile(output_path, 'r') as zip_ref:
+                # Extract all files
+                extract_dir = f"./sarvam_extracted_{job.job_id}"
+                zip_ref.extractall(extract_dir)
+                
+                # Find and read markdown files
+                for file_name in os.listdir(extract_dir):
+                    if file_name.endswith('.md'):
+                        with open(os.path.join(extract_dir, file_name), 'r', encoding='utf-8') as f:
+                            extracted_text += f.read() + "\n"
+                
+                # Cleanup extracted directory
+                shutil.rmtree(extract_dir, ignore_errors=True)
+            
+            # Cleanup output ZIP
+            os.remove(output_path)
+            
+        except Exception as e:
+            print(f"[SARVAM] Error extracting/reading output: {e}")
+            raise
+        
+        print(f"[SARVAM] Extracted text length: {len(extracted_text)}")
+        return extracted_text
+        
     except Exception as e:
-        # Removed: print(f"[OPENROUTER] Error: {e}")
-        raise HTTPException(status_code=500, detail=f"OpenRouter LLM processing failed: {str(e)}")
+        print(f"[SARVAM] Error during text extraction: {e}")
+        raise HTTPException(status_code=500, detail=f"Sarvam AI Vision extraction failed: {str(e)}")
+    
+    finally:
+        # Clean up temporary ZIP file if created
+        if temp_zip_path and os.path.exists(temp_zip_path):
+            try:
+                os.remove(temp_zip_path)
+                print(f"[SARVAM] Cleaned up temporary ZIP file")
+            except Exception as e:
+                print(f"[SARVAM] Warning: Could not remove temp ZIP: {e}")
+
+
+def parse_prescription_text(text: str) -> List[dict]:
+    """
+    Parse prescription text and extract medicine information.
+    This function uses pattern matching and intelligent parsing to extract:
+    - Medicine names
+    - Dosage information
+    - Frequency
+    - Timings
+    """
+    medicines = []
+    
+    # Common patterns for prescription parsing
+    lines = text.split('\n')
+    
+    # Non-medicine keywords to skip
+    skip_keywords = [
+        'prescription', 'doctor', 'patient', 'date', 'clinic', 'hospital', 
+        'signature', 'age:', 'tel.', 'tel:', 'phone:', 'address:', 'dr.', 'dr ',
+        'street', 'rd.', 'road', 'avenue', 'city', 'zip', 'postal',
+        'r/', 'rx', '#', '---', '**', 'ms/', 'mr/', 'mrs/', 'miss/',
+        'years', 'year old', 'y/o', 'yrs'
+    ]
+    
+    valid_timings = ["morning", "afternoon", "evening", "night"]
+    
+    for line in lines:
+        line = line.strip()
+        if not line or len(line) < 3:
+            continue
+        
+        # Remove markdown formatting
+        line = re.sub(r'\*\*', '', line)
+        line = re.sub(r'\*', '', line)
+        line = re.sub(r'##', '', line)
+        line = re.sub(r'#', '', line)
+        line = line.strip()
+        
+        # Skip if line is too short after cleaning
+        if len(line) < 3:
+            continue
+        
+        line_lower = line.lower()
+        
+        # Skip lines with non-medicine keywords
+        if any(keyword in line_lower for keyword in skip_keywords):
+            continue
+        
+        # Skip lines that are just numbers or dates
+        if re.match(r'^[\d\s\.\-\/]+$', line):
+            continue
+        
+        # Skip lines that look like phone numbers
+        if re.search(r'\d{3,}', line) and not re.search(r'(mg|mcg|ml|tablet|cap|g\b)', line_lower):
+            continue
+        
+        # Look for medicine pattern with dosage (including decimals)
+        # Pattern: Medicine name followed by dosage like "0.125 mg", "500mg", "2 tablets"
+        medicine_match = re.search(
+            r'^([A-Za-z][A-Za-z]+(?:\s+[A-Za-z]+)*?)\s+(\d+(?:\.\d+)?\s*(?:mg|mcg|g|ml|tablet|cap|unit|tabs))',
+            line,
+            re.IGNORECASE
+        )
+        
+        if medicine_match:
+            medicine_name = medicine_match.group(1).strip()
+            dosage = medicine_match.group(2).strip()
+            
+            # Skip if "medicine name" is actually a common word or too short
+            if len(medicine_name) < 3:
+                continue
+            
+            # Skip common non-medicine words
+            if medicine_name.lower() in ['age', 'tel', 'phone', 'address', 'date', 'street', 'the', 'and', 'for']:
+                continue
+            
+            # Parse frequency from the rest of the line
+            frequency = "once a day"  # default
+            timings = ["morning"]  # default
+            
+            # Look for frequency in the entire text after the medicine
+            rest_of_text = line[medicine_match.end():].lower()
+            
+            # Check for "dd" (daily dosing) pattern - common in prescriptions
+            if 'dd' in rest_of_text:
+                # Extract number before "dd" (e.g., "1 dd 1" means 1 time daily)
+                dd_match = re.search(r'(\d+)\s*dd', rest_of_text)
+                if dd_match:
+                    times_per_day = int(dd_match.group(1))
+                    if times_per_day == 1:
+                        frequency = "once a day"
+                        timings = ["morning"]
+                    elif times_per_day == 2:
+                        frequency = "twice a day"
+                        timings = ["morning", "evening"]
+                    elif times_per_day == 3:
+                        frequency = "thrice a day"
+                        timings = ["morning", "afternoon", "evening"]
+                    elif times_per_day == 4:
+                        frequency = "four times a day"
+                        timings = ["morning", "afternoon", "evening", "night"]
+            
+            # Check for standard frequency keywords
+            if any(word in line_lower for word in ['thrice', 'three times', 'tid', 't.i.d', '3 times', '3x', '3 dd']):
+                frequency = "thrice a day"
+                timings = ["morning", "afternoon", "evening"]
+            elif any(word in line_lower for word in ['twice', 'two times', 'bid', 'b.i.d', '2 times', '2x', '2 dd']):
+                frequency = "twice a day"
+                timings = ["morning", "evening"]
+            elif any(word in line_lower for word in ['four times', 'qid', 'q.i.d', '4 times', '4x', '4 dd']):
+                frequency = "four times a day"
+                timings = ["morning", "afternoon", "evening", "night"]
+            elif any(word in line_lower for word in ['once', 'one time', 'qd', 'q.d', 'daily', '1 time', '1x', '1 dd']):
+                frequency = "once a day"
+                timings = ["morning"]
+            
+            # Check for meal-related timing
+            if 'before meal' in line_lower or 'a.c' in line_lower or 'ac' in line_lower:
+                if frequency == "thrice a day":
+                    timings = ["morning", "afternoon", "evening"]
+            elif 'after meal' in line_lower or 'p.c' in line_lower or 'pc' in line_lower:
+                if frequency == "thrice a day":
+                    timings = ["morning", "afternoon", "evening"]
+            
+            medicines.append({
+                "medicine_name": medicine_name,
+                "dosage": dosage,
+                "quantity": "As prescribed",
+                "frequency": frequency,
+                "timings": timings
+            })
+    
+    # Remove duplicates based on medicine_name
+    seen_names = set()
+    unique_medicines = []
+    for med in medicines:
+        if med['medicine_name'] not in seen_names:
+            seen_names.add(med['medicine_name'])
+            unique_medicines.append(med)
+    
+    return unique_medicines
 
 # ==== ROUTES ====
 
 @router.post("/upload-prescription")
 async def upload_prescription(file: UploadFile = File(...), user_id: str = Form(...)):
-    """Upload prescription and create medicine schedule"""
+    """Upload prescription and create medicine schedule using Sarvam AI Vision"""
     try:
         # Verify user exists
         user = sync_users.find_one({"_id": ObjectId(user_id)})
@@ -182,73 +301,50 @@ async def upload_prescription(file: UploadFile = File(...), user_id: str = Form(
         with open(file_location, "wb") as f:
             f.write(await file.read())
 
-        # OCR
-        print(f"Extracting text from image: {file_location}")
-        text = extract_text_from_image(file_location)
-        print(f"Extracted text: {text[:200]}...")
+        # Extract text using Sarvam AI Vision
+        print(f"[UPLOAD] Extracting text from image using Sarvam AI Vision: {file_location}")
+        text = extract_text_from_image_with_sarvam(file_location)
+        print(f"[UPLOAD] Extracted text: {text[:200]}...")
 
-        # LLM Extraction
-        print("[UPLOAD] Calling OpenRouter for structured extraction...")
-        try:
-            structured_json = call_openrouter_llm(text)
-            print(f"[UPLOAD] OpenRouter response: {structured_json[:200]}...")
-        except Exception as e:
-            print(f"[OPENROUTER] LLM extraction failed: {e}")
-            raise HTTPException(status_code=500, detail=f"OpenRouter LLM extraction failed: {e}")
+        # Parse prescription text
+        print("[UPLOAD] Parsing prescription text...")
+        medicines = parse_prescription_text(text)
+        print(f"[UPLOAD] Parsed {len(medicines)} medicines")
 
-        # Clean markdown code blocks if present
-        cleaned_json = structured_json.strip()
-        if cleaned_json.startswith("```json"):
-            cleaned_json = cleaned_json[7:].strip()
-        elif cleaned_json.startswith("```"):
-            cleaned_json = cleaned_json[3:].strip()
-        if cleaned_json.endswith("```"):
-            cleaned_json = cleaned_json[:-3].strip()
-        # Removed: print(f"Cleaned JSON: {cleaned_json}")
+        # Convert to JSON string for storage
+        structured_json = json.dumps(medicines)
 
         # Save prescription
         prescription_doc = {
             "user_id": user_id,
             "raw_text": text,
-            "structured_data": cleaned_json,
+            "structured_data": structured_json,
             "created_at": datetime.utcnow()
         }
         prescription_id = sync_prescriptions.insert_one(prescription_doc).inserted_id
 
-        # Parse and create schedules
-        try:
-            medicines = json.loads(cleaned_json) if isinstance(cleaned_json, str) else cleaned_json
-            # Clean up null values and invalid timings
-            valid_timings = ["morning", "afternoon", "evening", "night"]
-            for medicine in medicines:
-                if isinstance(medicine, dict):
-                    # Convert null to "N/A"
-                    for key in ["medicine_name", "dosage", "quantity", "frequency"]:
-                        if medicine.get(key) is None:
-                            medicine[key] = "N/A"
-                    # Filter invalid timings
-                    timings = medicine.get("timings", [])
-                    if timings and isinstance(timings, list):
-                        medicine["timings"] = [t for t in timings if t in valid_timings]
-                        if not medicine["timings"]:
-                            medicine["timings"] = ["morning"]
-            # Removed: print(f"Cleaned medicines: {medicines}")
-        except Exception as e:
-            print(f"[OPENROUTER] JSON parsing error: {e}")
-            print(f"[OPENROUTER] Raw response: {cleaned_json}")
-            medicines = [{"medicine_name": "Unknown", "dosage": "As prescribed", "frequency": "Daily", "timings": ["morning"]}]
-
+        # Create schedules
         schedule_ids = []
+        valid_timings = ["morning", "afternoon", "evening", "night"]
+        
         for medicine in medicines:
             if isinstance(medicine, dict):
                 medicine_name = medicine.get("medicine_name", "N/A")
                 timings = medicine.get("timings", [])
+                
+                # Skip invalid medicines
                 if not medicine_name or medicine_name in ["N/A", "Unknown", "Unknown Medicine"]:
                     print(f"[SCHEDULE] Skipping - invalid medicine_name: {medicine_name}")
                     continue
-                if not timings or timings == []:
-                    print(f"[SCHEDULE] Skipping {medicine_name} - no valid timings")
-                    continue
+                
+                # Ensure timings are valid
+                if not timings or not isinstance(timings, list):
+                    timings = ["morning"]
+                else:
+                    timings = [t for t in timings if t in valid_timings]
+                    if not timings:
+                        timings = ["morning"]
+                
                 schedule_doc = {
                     "user_id": user_id,
                     "prescription_id": str(prescription_id),
@@ -262,7 +358,7 @@ async def upload_prescription(file: UploadFile = File(...), user_id: str = Form(
                 }
                 schedule_id = sync_schedules.insert_one(schedule_doc).inserted_id
                 schedule_ids.append(str(schedule_id))
-                # Removed: print(f"[SCHEDULE] Created schedule for {medicine_name} with timings: {timings}")
+                print(f"[SCHEDULE] Created schedule for {medicine_name} with timings: {timings}")
 
         # Clean up temp file
         try:
