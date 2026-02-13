@@ -110,14 +110,24 @@ const Dashboard = () => {
       const result = await prescriptionApi.uploadPrescription(file, token);
       toast({
         title: "Prescription uploaded!",
-        description: `${result.medicines.length} medicine(s) extracted and scheduled.`,
+        description: "Your prescription has been processed successfully.",
+        duration: 8000,
       });
       await loadData();
-    } catch (error) {
+    } catch (error: any) {
+      // Parse detailed error information from backend
+      let errorTitle = "Upload failed";
+      let errorDescription = "Failed to upload prescription";
+      
+      if (error instanceof Error) {
+        errorDescription = error.message;
+      }
+      
       toast({
-        title: "Upload failed",
-        description: error instanceof Error ? error.message : "Failed to upload prescription",
+        title: errorTitle,
+        description: errorDescription,
         variant: "destructive",
+        duration: 10000, // Show longer for detailed errors
       });
     } finally {
       setIsUploading(false);

@@ -7,7 +7,7 @@ import re
 import zipfile
 import shutil
 from datetime import datetime
-from typing import List
+from typing import List, Tuple
 from fastapi import APIRouter, UploadFile, File, Form, HTTPException
 from fastapi.responses import JSONResponse
 from bson import ObjectId
@@ -15,7 +15,16 @@ from dotenv import load_dotenv
 from pydantic import BaseModel
 from sarvamai import SarvamAI
 
+try:
+    from PIL import Image
+    import numpy as np
+    PIL_AVAILABLE = True
+except ImportError:
+    PIL_AVAILABLE = False
+    print("[INIT] PIL/Pillow not available - image quality validation disabled")
+
 from db.mongo import sync_prescriptions, sync_schedules, sync_users
+from prescription.enrichment import enrich_medicines, parse_prescription_with_groq
 
 load_dotenv()
 
@@ -54,6 +63,67 @@ def serialize_doc(doc):
         doc["_id"] = str(doc["_id"])
     return doc
 
+def validate_image_quality(image_path: str) -> Tuple[bool, str, dict]:
+    """Validate image quality before OCR processing"""
+    if not PIL_AVAILABLE:
+        return True, "Quality check skipped (PIL not available)", {}
+    
+    try:
+        img = Image.open(image_path)
+        
+        # Convert to RGB if needed
+        if img.mode != 'RGB':
+            img = img.convert('RGB')
+        
+        width, height = img.size
+        file_size = os.path.getsize(image_path)
+        
+        quality_metrics = {
+            "width": width,
+            "height": height,
+            "file_size_kb": round(file_size / 1024, 2),
+            "aspect_ratio": round(width / height, 2) if height > 0 else 0
+        }
+        
+        warnings = []
+        
+        # Check 1: Minimum resolution
+        min_dimension = min(width, height)
+        if min_dimension < 600:
+            warnings.append(f"Low resolution ({width}x{height}). Recommended minimum: 600px. OCR accuracy may be affected.")
+        
+        # Check 2: Very small file size (might indicate high compression)
+        if file_size < 50 * 1024:  # Less than 50KB
+            warnings.append(f"Small file size ({quality_metrics['file_size_kb']}KB). Image may be heavily compressed.")
+        
+        # Check 3: Extreme aspect ratios
+        aspect_ratio = width / height if height > 0 else 0
+        if aspect_ratio > 3 or aspect_ratio < 0.3:
+            warnings.append(f"Unusual aspect ratio ({quality_metrics['aspect_ratio']}). Image may be cropped or distorted.")
+        
+        # Check 4: Basic brightness check (if image is too dark or too bright)
+        try:
+            img_array = np.array(img)
+            mean_brightness = np.mean(img_array)
+            quality_metrics["brightness"] = round(float(mean_brightness), 2)
+            
+            if mean_brightness < 50:
+                warnings.append(f"Image appears very dark (brightness: {quality_metrics['brightness']}). Better lighting recommended.")
+            elif mean_brightness > 220:
+                warnings.append(f"Image appears overexposed (brightness: {quality_metrics['brightness']}). Reduce brightness.")
+        except:
+            pass  # Skip brightness check if numpy/conversion fails
+        
+        if warnings:
+            warning_message = " ".join(warnings)
+            return False, warning_message, quality_metrics
+        
+        return True, "Image quality acceptable", quality_metrics
+        
+    except Exception as e:
+        print(f"[QUALITY CHECK] Error validating image: {e}")
+        return True, f"Quality check failed: {str(e)}", {}
+
 def extract_text_from_image_with_sarvam(image_path: str) -> str:
     """Extract text from image using Sarvam AI Vision"""
     if not sarvam_client:
@@ -64,7 +134,7 @@ def extract_text_from_image_with_sarvam(image_path: str) -> str:
     try:
         print(f"[SARVAM] Creating document intelligence job for: {image_path}")
         
-        # Check if file is an image (JPG, PNG, JPEG) - needs to be zipped
+        # Check if file needs to be zipped
         file_ext = os.path.splitext(image_path)[1].lower()
         upload_path = image_path
         
@@ -77,31 +147,22 @@ def extract_text_from_image_with_sarvam(image_path: str) -> str:
                 zipf.write(image_path, os.path.basename(image_path))
             
             upload_path = temp_zip_path
-            print(f"[SARVAM] Image packaged into ZIP for upload")
         
-        # Create a document intelligence job
+        # Create document intelligence job
         job = sarvam_client.document_intelligence.create_job(
-            language="en-IN",  # Default to English, can be changed based on requirements
+            language="en-IN",
             output_format="md"  # Markdown format for easier parsing
         )
         print(f"[SARVAM] Job created: {job.job_id}")
         
-        # Upload document (ZIP or PDF)
+        # Upload and process
         job.upload_file(upload_path)
-        print("[SARVAM] File uploaded")
-        
-        # Start processing
         job.start()
-        print("[SARVAM] Job started")
-        
-        # Wait for completion
         status = job.wait_until_complete()
-        print(f"[SARVAM] Job completed with state: {status.job_state}")
         
         # Download output
         output_path = f"./sarvam_output_{job.job_id}.zip"
         job.download_output(output_path)
-        print(f"[SARVAM] Output saved to {output_path}")
         
         # Extract the ZIP file and read the markdown content
         extracted_text = ""
@@ -111,7 +172,7 @@ def extract_text_from_image_with_sarvam(image_path: str) -> str:
                 extract_dir = f"./sarvam_extracted_{job.job_id}"
                 zip_ref.extractall(extract_dir)
                 
-                # Find and read markdown files
+                # Read markdown files
                 for file_name in os.listdir(extract_dir):
                     if file_name.endswith('.md'):
                         with open(os.path.join(extract_dir, file_name), 'r', encoding='utf-8') as f:
@@ -119,171 +180,26 @@ def extract_text_from_image_with_sarvam(image_path: str) -> str:
                 
                 # Cleanup extracted directory
                 shutil.rmtree(extract_dir, ignore_errors=True)
-            
-            # Cleanup output ZIP
-            os.remove(output_path)
-            
         except Exception as e:
-            print(f"[SARVAM] Error extracting/reading output: {e}")
-            raise
+            print(f"[SARVAM] Error extracting output: {e}")
+        finally:
+            # Cleanup output ZIP
+            if os.path.exists(output_path):
+                os.remove(output_path)
         
-        print(f"[SARVAM] Extracted text length: {len(extracted_text)}")
-        return extracted_text
-        
-    except Exception as e:
-        print(f"[SARVAM] Error during text extraction: {e}")
-        raise HTTPException(status_code=500, detail=f"Sarvam AI Vision extraction failed: {str(e)}")
-    
-    finally:
         # Clean up temporary ZIP file if created
         if temp_zip_path and os.path.exists(temp_zip_path):
             try:
                 os.remove(temp_zip_path)
-                print(f"[SARVAM] Cleaned up temporary ZIP file")
             except Exception as e:
-                print(f"[SARVAM] Warning: Could not remove temp ZIP: {e}")
+                print(f"[SARVAM] Error cleaning up temp ZIP: {e}")
+        
+        return extracted_text
+    
+    except Exception as e:
+        print(f"[SARVAM] Error extracting text: {e}")
+        raise HTTPException(status_code=500, detail=f"OCR failed: {str(e)}")
 
-
-def parse_prescription_text(text: str) -> List[dict]:
-    """
-    Parse prescription text and extract medicine information.
-    This function uses pattern matching and intelligent parsing to extract:
-    - Medicine names
-    - Dosage information
-    - Frequency
-    - Timings
-    """
-    medicines = []
-    
-    # Common patterns for prescription parsing
-    lines = text.split('\n')
-    
-    # Non-medicine keywords to skip
-    skip_keywords = [
-        'prescription', 'doctor', 'patient', 'date', 'clinic', 'hospital', 
-        'signature', 'age:', 'tel.', 'tel:', 'phone:', 'address:', 'dr.', 'dr ',
-        'street', 'rd.', 'road', 'avenue', 'city', 'zip', 'postal',
-        'r/', 'rx', '#', '---', '**', 'ms/', 'mr/', 'mrs/', 'miss/',
-        'years', 'year old', 'y/o', 'yrs'
-    ]
-    
-    valid_timings = ["morning", "afternoon", "evening", "night"]
-    
-    for line in lines:
-        line = line.strip()
-        if not line or len(line) < 3:
-            continue
-        
-        # Remove markdown formatting
-        line = re.sub(r'\*\*', '', line)
-        line = re.sub(r'\*', '', line)
-        line = re.sub(r'##', '', line)
-        line = re.sub(r'#', '', line)
-        line = line.strip()
-        
-        # Skip if line is too short after cleaning
-        if len(line) < 3:
-            continue
-        
-        line_lower = line.lower()
-        
-        # Skip lines with non-medicine keywords
-        if any(keyword in line_lower for keyword in skip_keywords):
-            continue
-        
-        # Skip lines that are just numbers or dates
-        if re.match(r'^[\d\s\.\-\/]+$', line):
-            continue
-        
-        # Skip lines that look like phone numbers
-        if re.search(r'\d{3,}', line) and not re.search(r'(mg|mcg|ml|tablet|cap|g\b)', line_lower):
-            continue
-        
-        # Look for medicine pattern with dosage (including decimals)
-        # Pattern: Medicine name followed by dosage like "0.125 mg", "500mg", "2 tablets"
-        medicine_match = re.search(
-            r'^([A-Za-z][A-Za-z]+(?:\s+[A-Za-z]+)*?)\s+(\d+(?:\.\d+)?\s*(?:mg|mcg|g|ml|tablet|cap|unit|tabs))',
-            line,
-            re.IGNORECASE
-        )
-        
-        if medicine_match:
-            medicine_name = medicine_match.group(1).strip()
-            dosage = medicine_match.group(2).strip()
-            
-            # Skip if "medicine name" is actually a common word or too short
-            if len(medicine_name) < 3:
-                continue
-            
-            # Skip common non-medicine words
-            if medicine_name.lower() in ['age', 'tel', 'phone', 'address', 'date', 'street', 'the', 'and', 'for']:
-                continue
-            
-            # Parse frequency from the rest of the line
-            frequency = "once a day"  # default
-            timings = ["morning"]  # default
-            
-            # Look for frequency in the entire text after the medicine
-            rest_of_text = line[medicine_match.end():].lower()
-            
-            # Check for "dd" (daily dosing) pattern - common in prescriptions
-            if 'dd' in rest_of_text:
-                # Extract number before "dd" (e.g., "1 dd 1" means 1 time daily)
-                dd_match = re.search(r'(\d+)\s*dd', rest_of_text)
-                if dd_match:
-                    times_per_day = int(dd_match.group(1))
-                    if times_per_day == 1:
-                        frequency = "once a day"
-                        timings = ["morning"]
-                    elif times_per_day == 2:
-                        frequency = "twice a day"
-                        timings = ["morning", "evening"]
-                    elif times_per_day == 3:
-                        frequency = "thrice a day"
-                        timings = ["morning", "afternoon", "evening"]
-                    elif times_per_day == 4:
-                        frequency = "four times a day"
-                        timings = ["morning", "afternoon", "evening", "night"]
-            
-            # Check for standard frequency keywords
-            if any(word in line_lower for word in ['thrice', 'three times', 'tid', 't.i.d', '3 times', '3x', '3 dd']):
-                frequency = "thrice a day"
-                timings = ["morning", "afternoon", "evening"]
-            elif any(word in line_lower for word in ['twice', 'two times', 'bid', 'b.i.d', '2 times', '2x', '2 dd']):
-                frequency = "twice a day"
-                timings = ["morning", "evening"]
-            elif any(word in line_lower for word in ['four times', 'qid', 'q.i.d', '4 times', '4x', '4 dd']):
-                frequency = "four times a day"
-                timings = ["morning", "afternoon", "evening", "night"]
-            elif any(word in line_lower for word in ['once', 'one time', 'qd', 'q.d', 'daily', '1 time', '1x', '1 dd']):
-                frequency = "once a day"
-                timings = ["morning"]
-            
-            # Check for meal-related timing
-            if 'before meal' in line_lower or 'a.c' in line_lower or 'ac' in line_lower:
-                if frequency == "thrice a day":
-                    timings = ["morning", "afternoon", "evening"]
-            elif 'after meal' in line_lower or 'p.c' in line_lower or 'pc' in line_lower:
-                if frequency == "thrice a day":
-                    timings = ["morning", "afternoon", "evening"]
-            
-            medicines.append({
-                "medicine_name": medicine_name,
-                "dosage": dosage,
-                "quantity": "As prescribed",
-                "frequency": frequency,
-                "timings": timings
-            })
-    
-    # Remove duplicates based on medicine_name
-    seen_names = set()
-    unique_medicines = []
-    for med in medicines:
-        if med['medicine_name'] not in seen_names:
-            seen_names.add(med['medicine_name'])
-            unique_medicines.append(med)
-    
-    return unique_medicines
 
 # ==== ROUTES ====
 
@@ -301,15 +217,27 @@ async def upload_prescription(file: UploadFile = File(...), user_id: str = Form(
         with open(file_location, "wb") as f:
             f.write(await file.read())
 
-        # Extract text using Sarvam AI Vision
-        print(f"[UPLOAD] Extracting text from image using Sarvam AI Vision: {file_location}")
-        text = extract_text_from_image_with_sarvam(file_location)
-        print(f"[UPLOAD] Extracted text: {text[:200]}...")
+        # Validate image quality before OCR
+        quality_valid, quality_message, quality_metrics = validate_image_quality(file_location)
+        quality_warnings = []
+        
+        if not quality_valid:
+            quality_warnings.append(quality_message)
 
-        # Parse prescription text
-        print("[UPLOAD] Parsing prescription text...")
-        medicines = parse_prescription_text(text)
-        print(f"[UPLOAD] Parsed {len(medicines)} medicines")
+        # Extract text using Sarvam AI Vision
+        text = extract_text_from_image_with_sarvam(file_location)
+        print(f"[OCR] Extracted {len(text)} characters")
+
+        # Parse prescription using Groq LLM
+        medicines = parse_prescription_with_groq(text)
+        print(f"[PARSE] Found {len(medicines)} medicines")
+
+        # Enrich with LLM + web search
+        enriched_medicines, enrichment_stats = enrich_medicines(medicines)
+        print(f"[ENRICHMENT] {enrichment_stats['enriched_count']} enriched, {enrichment_stats['skipped_count']} complete")
+        
+        # Use enriched medicines for storage and scheduling
+        medicines = enriched_medicines
 
         # Convert to JSON string for storage
         structured_json = json.dumps(medicines)
@@ -334,7 +262,6 @@ async def upload_prescription(file: UploadFile = File(...), user_id: str = Form(
                 
                 # Skip invalid medicines
                 if not medicine_name or medicine_name in ["N/A", "Unknown", "Unknown Medicine"]:
-                    print(f"[SCHEDULE] Skipping - invalid medicine_name: {medicine_name}")
                     continue
                 
                 # Ensure timings are valid
@@ -358,7 +285,6 @@ async def upload_prescription(file: UploadFile = File(...), user_id: str = Form(
                 }
                 schedule_id = sync_schedules.insert_one(schedule_doc).inserted_id
                 schedule_ids.append(str(schedule_id))
-                print(f"[SCHEDULE] Created schedule for {medicine_name} with timings: {timings}")
 
         # Clean up temp file
         try:
@@ -366,13 +292,55 @@ async def upload_prescription(file: UploadFile = File(...), user_id: str = Form(
         except:
             pass
 
-        return JSONResponse({
+        
+            error_response = {
+                "success": False,
+                "prescription_id": str(prescription_id),
+                "schedule_ids": [],
+                "medicines": [],
+                "message": "No medicines detected. This may be due to poor image quality, unclear text, or non-standard prescription format. Please try uploading a clearer image or contact support.",
+                "raw_text_preview": text[:300] if text else "No text extracted",
+                "suggestions": [
+                    "Ensure the image is clear and well-lit",
+                    "Make sure the prescription text is readable",
+                    "Try taking the photo straight-on (not at an angle)",
+                    "Check that medicine names and dosages are visible"
+                ]
+            }
+            
+            # Add quality warnings if any
+            if quality_warnings:
+                error_response["quality_warnings"] = quality_warnings
+                error_response["quality_metrics"] = quality_metrics
+            
+            return JSONResponse(error_response, status_code=400)
+        
+        # Build success message with warnings if any
+        message = f"Prescription uploaded successfully. {len(medicines)} medicine(s) extracted and {len(schedule_ids)} schedule(s) created."
+        if len(medicines) != len(schedule_ids):
+            message += f" Note: Some medicines were skipped (e.g., 'as needed' medications)."
+        
+        # Add enrichment information to message
+        if enrichment_stats.get("enriched_count", 0) > 0:
+            message += f" {enrichment_stats['enriched_count']} medicine(s) enhanced with AI-powered information."
+
+        response_data = {
             "success": True,
             "prescription_id": str(prescription_id),
             "schedule_ids": schedule_ids,
             "medicines": medicines,
-            "message": "Prescription uploaded and schedules created successfully"
-        })
+            "message": message,
+            "schedules_created": len(schedule_ids),
+            "medicines_detected": len(medicines),
+            "enrichment_stats": enrichment_stats
+        }
+        
+        # Add quality warnings if any
+        if quality_warnings:
+            response_data["quality_warnings"] = quality_warnings
+            response_data["quality_metrics"] = quality_metrics
+
+        return JSONResponse(response_data)
 
     except HTTPException:
         raise

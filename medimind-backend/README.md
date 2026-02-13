@@ -105,6 +105,156 @@ def call_openrouter_llm(text: str):
 
 ---
 
+### **Phase 3.5: LLM-Powered Medicine Enrichment** 🤖✨
+
+**NEW FEATURE:** Automatically fills in missing prescription information using AI + real-time web search.
+
+**Technology:** 
+- Groq LLaMA 3.3 70B (Ultra-fast LLM reasoning)
+- Tavily Search API (Real-time web search for medical information)
+
+**When It Runs:**
+After OCR parsing but before saving to database, the system:
+1. Detects missing/incomplete fields (dosage, frequency, timings)
+2. Searches the web for standard medicine information
+3. Uses LLM to intelligently fill in missing data based on medical knowledge
+
+**Process Flow:**
+
+```python
+# prescription/enrichment.py
+
+def enrich_medicines(medicines: List[Dict]) -> Tuple[List[Dict], Dict]:
+    """
+    Step 1: Detect missing information
+    """
+    for medicine in medicines:
+        missing_fields = detect_missing_information(medicine)
+        # Example: ["dosage", "frequency"] if these are "As prescribed"
+        
+        if missing_fields:
+            # Step 2: Web search for medicine information
+            search_context = search_medicine_information(
+                medicine_name="Amoxicillin",
+                missing_fields=["dosage", "frequency"]
+            )
+            # Returns: "Amoxicillin standard adult dose is 250-500mg 3 times daily..."
+            
+            # Step 3: LLM enrichment with context
+            enriched_medicine, success = enrich_medicine_with_llm(
+                medicine=medicine,
+                missing_fields=missing_fields,
+                search_context=search_context
+            )
+```
+
+**LLM Prompt Example:**
+
+```python
+prompt = """
+You are a medical information assistant. A prescription has been scanned but some information is missing.
+
+Medicine Name: Amoxicillin
+Current Information:
+- Dosage: As prescribed
+- Frequency: Unknown
+- Timings: []
+
+Missing Fields: dosage, frequency
+
+Web Search Results:
+Amoxicillin is commonly prescribed at 250-500mg three times daily for adults...
+
+Based on standard medical practices, provide typical values for missing fields.
+
+IMPORTANT RULES:
+1. Only provide standard, commonly prescribed values
+2. For dosage: Provide typical adult dosage (e.g., "500mg", "250mg")
+3. For frequency: Use: "once a day", "twice a day", "thrice a day"
+4. For timings: Combinations of: "morning", "afternoon", "evening", "night"
+5. If uncertain, return "Unable to determine"
+6. Be conservative - patient safety is critical
+
+Respond ONLY with JSON:
+{
+  "dosage": "250mg",
+  "frequency": "thrice a day",
+  "timings": ["morning", "afternoon", "evening"],
+  "confidence": "high",
+  "reasoning": "Standard adult dose for common infections"
+}
+"""
+```
+
+**Example Enrichment:**
+
+**Before Enrichment:**
+```json
+{
+  "medicine_name": "Amoxicillin",
+  "dosage": "As prescribed",
+  "frequency": "Unknown",
+  "timings": []
+}
+```
+
+**After Enrichment:**
+```json
+{
+  "medicine_name": "Amoxicillin",
+  "dosage": "250mg",
+  "frequency": "thrice a day",
+  "timings": ["morning", "afternoon", "evening"],
+  "enriched": true,
+  "enrichment_confidence": "high",
+  "enrichment_reasoning": "Standard adult dose for common bacterial infections",
+  "enrichment_notes": "AI-enriched: dosage: 250mg, frequency: thrice a day, timings: morning, afternoon, evening"
+}
+```
+
+**Safety Features:**
+- ✅ Only fills in standard, commonly prescribed values
+- ✅ Uses real-time web search for up-to-date medical information
+- ✅ Includes confidence levels (high/medium/low)
+- ✅ Provides reasoning for transparency
+- ✅ Returns "Unable to determine" if uncertain
+- ✅ Conservative approach prioritizing patient safety
+
+**Enrichment Statistics Returned:**
+```json
+{
+  "enrichment_stats": {
+    "enabled": true,
+    "total_medicines": 3,
+    "enriched_count": 2,
+    "skipped_count": 1,
+    "failed_count": 0,
+    "enriched_medicines": [
+      {
+        "name": "Amoxicillin",
+        "fields_added": ["dosage", "frequency", "timings"],
+        "confidence": "high"
+      }
+    ]
+  }
+}
+```
+
+**Configuration:**
+
+Add to `.env`:
+```bash
+# Required for LLM enrichment
+GROQ_API_KEY=gsk-your-groq-key
+TAVILY_API_KEY=tvly-your-tavily-key
+
+# Optional feature flags
+ENABLE_LLM_ENRICHMENT=true
+ENABLE_WEB_SEARCH=true
+```
+
+---
+
 ### **Phase 4: Database Storage**
 
 **Technology:** MongoDB Atlas

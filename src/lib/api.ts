@@ -178,6 +178,30 @@ export const prescriptionApi = {
     schedule_ids: string[];
     medicines: unknown[];
     message: string;
+    schedules_created?: number;
+    medicines_detected?: number;
+    quality_warnings?: string[];
+    quality_metrics?: {
+      width?: number;
+      height?: number;
+      file_size_kb?: number;
+      aspect_ratio?: number;
+      brightness?: number;
+    };
+    enrichment_stats?: {
+      enabled: boolean;
+      total_medicines: number;
+      enriched_count: number;
+      skipped_count: number;
+      failed_count: number;
+      enriched_medicines: Array<{
+        name: string;
+        fields_added: string[];
+        confidence: string;
+      }>;
+    };
+    raw_text_preview?: string;
+    suggestions?: string[];
   }> {
     const formData = new FormData();
     formData.append("file", file);
@@ -198,7 +222,10 @@ export const prescriptionApi = {
     const result = await response.json();
 
     if (!response.ok) {
-      throw new Error(result.error || result.detail || "Upload failed");
+      // Create detailed error with backend information
+      const error: any = new Error(result.message || result.error || result.detail || "Upload failed");
+      error.details = result;
+      throw error;
     }
 
     return result;
