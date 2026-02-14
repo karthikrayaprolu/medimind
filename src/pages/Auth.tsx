@@ -1,7 +1,6 @@
 import { FormEvent, useMemo, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
-import { motion, AnimatePresence } from "framer-motion";
-import { LogIn, UserPlus, Mail, Lock, ShieldCheck, ArrowLeft } from "lucide-react";
+import { LogIn, UserPlus, Mail, Lock, ArrowLeft, Pill } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -11,15 +10,8 @@ import { useAuth } from "@/hooks/use-auth";
 import { cn } from "@/lib/utils";
 import { useAuthContext } from "@/contexts/AuthContext";
 
-const tabConfig = [
-  { key: "login", label: "Login", icon: LogIn },
-  { key: "signup", label: "Sign Up", icon: UserPlus },
-] as const;
-
-type AuthMode = (typeof tabConfig)[number]["key"];
-
 const AuthPage = () => {
-  const [mode, setMode] = useState<AuthMode>("login");
+  const [mode, setMode] = useState<"login" | "signup">("login");
   const [isLoading, setIsLoading] = useState(false);
   const { login } = useAuth();
   const { registerPushNotifications } = useAuthContext();
@@ -43,7 +35,7 @@ const AuthPage = () => {
     if (!email || !password) {
       toast({
         title: "Missing details",
-        description: "Please enter your email and password to continue.",
+        description: "Please enter your email and password.",
         variant: "destructive",
       });
       return;
@@ -54,7 +46,7 @@ const AuthPage = () => {
       if (password !== confirm) {
         toast({
           title: "Passwords do not match",
-          description: "Please ensure both password fields are identical.",
+          description: "Please ensure both password fields match.",
           variant: "destructive",
         });
         return;
@@ -69,10 +61,7 @@ const AuthPage = () => {
       if (mode === "login") {
         const response = await authApi.login({ email, password });
         login(response.user_id);
-        
-        // Register push notifications after successful login
         registerPushNotifications().catch(console.error);
-        
         toast({
           title: "Welcome back!",
           description: `Logged in as ${response.email}`,
@@ -81,13 +70,10 @@ const AuthPage = () => {
         const fullName = String(formData.get("fullName") ?? "").trim();
         const response = await authApi.signup({ email, password, fullName });
         login(response.user_id);
-        
-        // Register push notifications after successful signup
         registerPushNotifications().catch(console.error);
-        
         toast({
           title: "Account created!",
-          description: "Your account has been created successfully.",
+          description: "Welcome to MediMind",
         });
       }
 
@@ -95,7 +81,7 @@ const AuthPage = () => {
     } catch (error) {
       toast({
         title: mode === "login" ? "Login failed" : "Signup failed",
-        description: error instanceof Error ? error.message : "An error occurred. Please try again.",
+        description: error instanceof Error ? error.message : "Please try again.",
         variant: "destructive",
       });
     } finally {
@@ -104,174 +90,151 @@ const AuthPage = () => {
   };
 
   return (
-    <div className="relative min-h-screen bg-gradient-to-br from-background via-muted/40 to-background">
-      <div className="absolute inset-x-0 top-6 flex justify-center">
-        <Button variant="ghost" className="" onClick={() => navigate("/")}>
-
+    <div className="relative min-h-screen bg-background flex items-center justify-center px-4 py-8">
+      {/* Back Button */}
+      <div className="absolute top-4 left-4">
+        <Button variant="ghost" onClick={() => navigate("/")}>
           <ArrowLeft className="mr-2 h-4 w-4" />
-          Back to site
+          Back
         </Button>
       </div>
 
-      <div className="flex min-h-screen items-center justify-center px-4">
-        <motion.div
-          initial={{ opacity: 0, y: 24 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.6 }}
-          className="w-full max-w-4xl"
-        >
-          <Card className="overflow-hidden border-border/60 bg-card/95 shadow-2xl backdrop-blur">
-            <div className={cn("grid gap-0", mode === "login" ? "md:grid-cols-2 md:min-h-[560px]" : "md:grid-cols-1")}>
-              <div className={cn("relative flex flex-col p-8 sm:p-12", mode === "signup" && "mx-auto w-full max-w-3xl")}>
-                <motion.div
-                  layout
-                  className="mb-8 flex rounded-full bg-primary/10 p-1 text-xs font-semibold uppercase tracking-widest text-primary"
-                >
-                  <motion.div layout className="px-4 py-1">
-                    MediMind Access Portal
-                  </motion.div>
-                </motion.div>
-
-                <div className="relative mb-10 flex justify-center overflow-hidden rounded-xl bg-muted/40 p-2">
-                  <div className="relative flex w-full rounded-lg bg-background p-1">
-                    {tabConfig.map((tab) => {
-                      const Icon = tab.icon;
-                      const isActive = mode === tab.key;
-                      return (
-                        <button
-                          key={tab.key}
-                          type="button"
-                          onClick={() => setMode(tab.key)}
-                          className={cn(
-                            "relative flex-1 rounded-md px-4 py-3 text-sm font-semibold transition-colors",
-                            isActive ? "text-primary" : "text-muted-foreground hover:text-foreground",
-                          )}
-                        >
-                          {isActive && (
-                            <motion.span
-                              layoutId="auth-highlight"
-                              className="absolute inset-0 rounded-md bg-primary/10"
-                              transition={{ type: "spring", stiffness: 400, damping: 30 }}
-                            />
-                          )}
-                          <span className="relative z-10 flex items-center justify-center gap-2">
-                            <Icon className="h-4 w-4" />
-                            {tab.label}
-                          </span>
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
-
-                <AnimatePresence mode="wait">
-                  <motion.form
-                    key={mode}
-                    onSubmit={handleSubmit}
-                    initial={{ opacity: 0, y: 15 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, y: -10 }}
-                    transition={{ duration: 0.35 }}
-                    className={cn(mode === "signup" ? "grid gap-6 md:grid-cols-2" : "space-y-6")}
-                  >
-                    {mode === "signup" && (
-                      <div className="space-y-2">
-                        <Label htmlFor="fullName">Full name</Label>
-                        <div className="relative">
-                          <Input id="fullName" name="fullName" placeholder="Jamie Rivera" autoComplete="name" />
-                          <ShieldCheck className="absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                        </div>
-                      </div>
-                    )}
-
-                    <div className="space-y-2">
-                      <Label htmlFor="email">Email address</Label>
-                      <div className="relative">
-                        <Input
-                          id="email"
-                          name="email"
-                          type="email"
-                          placeholder="you@example.com"
-                          autoComplete="email"
-                        />
-                        <Mail className="absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                      </div>
-                    </div>
-
-                    <div className="space-y-2">
-                      <Label htmlFor="password">Password</Label>
-                      <div className="relative">
-                        <Input id="password" name="password" type="password" placeholder="••••••••" autoComplete="current-password" />
-                        <Lock className="absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                      </div>
-                    </div>
-
-                    {mode === "signup" && (
-                      <div className="space-y-2">
-                        <Label htmlFor="confirmPassword">Confirm password</Label>
-                        <div className="relative">
-                          <Input id="confirmPassword" name="confirmPassword" type="password" placeholder="••••••••" autoComplete="new-password" />
-                          <Lock className="absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                        </div>
-                      </div>
-                    )}
-
-                    <div className={cn(mode === "signup" ? "md:col-span-2 space-y-4" : "space-y-4")}>
-                      <Button type="submit" className="w-full" disabled={isLoading}>
-                        {isLoading ? "Authorizing..." : mode === "login" ? "Access Workspace" : "Create Account"}
-                      </Button>
-
-                      <p className="text-center text-xs text-muted-foreground">
-                        By continuing you agree to secure handling of healthcare information within the MediMind platform.
-                      </p>
-                    </div>
-                  </motion.form>
-                </AnimatePresence>
-              </div>
-
-              {mode === "login" && (
-                <div className="relative hidden h-full flex-col gap-12 bg-primary p-8 text-primary-foreground md:flex">
-                  <motion.div
-                    initial={{ opacity: 0, y: 15 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: 0.2, duration: 0.6 }}
-                    className="space-y-5"
-                  >
-                    <span className="inline-flex items-center gap-2 rounded-full bg-primary-foreground/10 px-3 py-1 text-xs font-semibold uppercase tracking-widest">
-                      <ShieldCheck className="h-4 w-4" />
-                      Protected Access
-                    </span>
-                    <h2 className="text-3xl font-bold">Medication Management Workspace</h2>
-                    <p className="text-sm text-primary-foreground/90">
-                      Authenticate to upload prescriptions, monitor OCR progress, review structured medication records, and manage reminder schedules—everything orchestrated in one secure hub.
-                    </p>
-                  </motion.div>
-
-                  <motion.ul
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: 0.4, duration: 0.6 }}
-                    className="space-y-4 text-sm text-primary-foreground/90"
-                  >
-                    <li className="flex items-start gap-3">
-                      <span className="mt-1 inline-flex h-6 w-6 items-center justify-center rounded-full bg-primary-foreground/15 text-sm font-semibold">1</span>
-                      Upload prescriptions with JWT-secured API calls and instant status tracking.
-                    </li>
-                    <li className="flex items-start gap-3">
-                      <span className="mt-1 inline-flex h-6 w-6 items-center justify-center rounded-full bg-primary-foreground/15 text-sm font-semibold">2</span>
-                      Review OCR and structured medication data synchronized across services.
-                    </li>
-                    <li className="flex items-start gap-3">
-                      <span className="mt-1 inline-flex h-6 w-6 items-center justify-center rounded-full bg-primary-foreground/15 text-sm font-semibold">3</span>
-                      Configure reminder schedules and track adherence history without leaving the dashboard.
-                    </li>
-                  </motion.ul>
-                </div>
-              )}
+      {/* Auth Card */}
+      <Card className="w-full max-w-md bg-white dark:bg-slate-900 border-gray-200 dark:border-gray-800 shadow-xl">
+        <div className="p-6 sm:p-8">
+          {/* Header */}
+          <div className="mb-8 text-center">
+            <div className="mb-4 inline-flex h-16 w-16 items-center justify-center rounded-2xl bg-primary">
+              <Pill className="h-8 w-8 text-white" />
             </div>
-          </Card>
-        </motion.div>
-      </div>
+            <h1 className="text-2xl font-bold text-foreground">Welcome to MediMind</h1>
+            <p className="mt-2 text-sm text-muted-foreground">
+              {mode === "login" ? "Sign in to your account" : "Create your account"}
+            </p>
+          </div>
+
+          {/* Tab Switcher */}
+          <div className="mb-6 flex rounded-xl bg-muted p-1">
+            <button
+              type="button"
+              onClick={() => setMode("login")}
+              className={cn(
+                "flex-1 rounded-lg px-4 py-2.5 text-sm font-semibold transition-all",
+                mode === "login"
+                  ? "bg-white dark:bg-slate-800 text-foreground shadow-sm"
+                  : "text-muted-foreground hover:text-foreground"
+              )}
+            >
+              <LogIn className="mr-2 inline h-4 w-4" />
+              Login
+            </button>
+            <button
+              type="button"
+              onClick={() => setMode("signup")}
+              className={cn(
+                "flex-1 rounded-lg px-4 py-2.5 text-sm font-semibold transition-all",
+                mode === "signup"
+                  ? "bg-white dark:bg-slate-800 text-foreground shadow-sm"
+                  : "text-muted-foreground hover:text-foreground"
+              )}
+            >
+              <UserPlus className="mr-2 inline h-4 w-4" />
+              Sign Up
+            </button>
+          </div>
+
+          {/* Form */}
+          <form onSubmit={handleSubmit} className="space-y-4">
+            {mode === "signup" && (
+              <div className="space-y-2">
+                <Label htmlFor="fullName">Full Name</Label>
+                <div className="relative">
+                  <Input
+                    id="fullName"
+                    name="fullName"
+                    placeholder="John Doe"
+                    autoComplete="name"
+                    className="pl-3 pr-10"
+                  />
+                </div>
+              </div>
+            )}
+
+            <div className="space-y-2">
+              <Label htmlFor="email">Email</Label>
+              <div className="relative">
+                <Input
+                  id="email"
+                  name="email"
+                  type="email"
+                  placeholder="you@example.com"
+                  autoComplete="email"
+                  className="pl-3 pr-10"
+                />
+                <Mail className="absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="password">Password</Label>
+              <div className="relative">
+                <Input
+                  id="password"
+                  name="password"
+                  type="password"
+                  placeholder="••••••••"
+                  autoComplete={mode === "login" ? "current-password" : "new-password"}
+                  className="pl-3 pr-10"
+                />
+                <Lock className="absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+              </div>
+            </div>
+
+            {mode === "signup" && (
+              <div className="space-y-2">
+                <Label htmlFor="confirmPassword">Confirm Password</Label>
+                <div className="relative">
+                  <Input
+                    id="confirmPassword"
+                    name="confirmPassword"
+                    type="password"
+                    placeholder="••••••••"
+                    autoComplete="new-password"
+                    className="pl-3 pr-10"
+                  />
+                  <Lock className="absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                </div>
+              </div>
+            )}
+
+            <Button
+              type="submit"
+              className="w-full bg-primary hover:bg-primary/90 mt-6"
+              disabled={isLoading}
+            >
+              {isLoading ? "Please wait..." : mode === "login" ? "Sign In" : "Create Account"}
+            </Button>
+
+            <p className="mt-4 text-center text-xs text-muted-foreground">
+              By continuing, you agree to our Terms and Privacy Policy
+            </p>
+          </form>
+        </div>
+
+        {/* Footer Info */}
+        <div className="border-t border-gray-200 dark:border-gray-800 bg-muted/30 px-6 py-4">
+          <div className="space-y-2 text-xs text-muted-foreground">
+            <div className="flex items-center gap-2">
+              <div className="h-1.5 w-1.5 rounded-full bg-secondary" />
+              <span>Secure encrypted authentication</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <div className="h-1.5 w-1.5 rounded-full bg-secondary" />
+              <span>HIPAA compliant data storage</span>
+            </div>
+          </div>
+        </div>
+      </Card>
     </div>
   );
 };

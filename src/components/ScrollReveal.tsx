@@ -21,7 +21,9 @@ const ScrollReveal = ({
     threshold = 0.1,
 }: ScrollRevealProps) => {
     const ref = useRef(null);
-    const isInView = useInView(ref, { once: true, margin: `0px 0px -${threshold * 100}px 0px` as string });
+    // Use static margin values to avoid type issues
+    const marginValue = threshold === 0.1 ? "0px 0px -10px 0px" : "0px 0px -100px 0px";
+    const isInView = useInView(ref, { once: true, margin: marginValue });
 
     const variants: Record<string, { hidden: Variant; visible: Variant }> = {
         "fade-up": {

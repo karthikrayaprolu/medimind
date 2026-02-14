@@ -11,8 +11,6 @@ import NotFound from "./pages/NotFound";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { useAuth } from "@/hooks/use-auth";
 import ProtectedRoute from "@/components/ProtectedRoute";
-import SmoothScroll from "@/components/SmoothScroll";
-import { ShaderBackground } from "@/components/ShaderBackground";
 
 const queryClient = new QueryClient();
 
@@ -32,23 +30,20 @@ const App = () => (
         <Sonner />
         <AuthProvider>
           <BrowserRouter>
-            <ShaderBackground />
-            <SmoothScroll>
-              <Routes>
-                <Route path="/" element={<LandingRoute />} />
-                <Route path="/auth" element={<AuthPage />} />
-                <Route
-                  path="/dashboard"
-                  element={(
-                    <ProtectedRoute>
-                      <Dashboard />
-                    </ProtectedRoute>
-                  )}
-                />
-                {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
-                <Route path="*" element={<NotFound />} />
-              </Routes>
-            </SmoothScroll>
+            <Routes>
+              <Route path="/" element={<LandingRoute />} />
+              <Route path="/auth" element={<AuthPage />} />
+              <Route
+                path="/dashboard"
+                element={(
+                  <ProtectedRoute>
+                    <Dashboard />
+                  </ProtectedRoute>
+                )}
+              />
+              {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
+              <Route path="*" element={<NotFound />} />
+            </Routes>
           </BrowserRouter>
         </AuthProvider>
       </TooltipProvider>

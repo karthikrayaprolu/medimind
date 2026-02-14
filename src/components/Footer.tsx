@@ -1,8 +1,12 @@
 import { Linkedin, Twitter, Instagram, Pill } from "lucide-react";
-import { useSmoothScroll } from "@/hooks/use-smooth-scroll";
 
 const Footer = () => {
-  const { scrollToSection } = useSmoothScroll();
+  const scrollToSection = (id: string) => {
+    const element = document.getElementById(id);
+    if (element) {
+      element.scrollIntoView({ behavior: "smooth" });
+    }
+  };
 
   const footerLinks = [
     { label: "Home", id: "home" },

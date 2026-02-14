@@ -17,37 +17,44 @@ All colors MUST be HSL.
 
 @layer base {
   :root {
-    --background: 0 0% 100%;
+    /* 60% - Background (Light neutral) */
+    --background: 210 20% 98%;
     --foreground: 215 25% 15%;
 
+    /* Cards with subtle elevation */
     --card: 0 0% 100%;
     --card-foreground: 215 25% 15%;
 
     --popover: 0 0% 100%;
     --popover-foreground: 215 25% 15%;
 
-    /* Medical blue primary */
+    /* 30% - Primary (Medical Blue) */
     --primary: 217 91% 60%;
     --primary-foreground: 0 0% 100%;
     
-    /* Teal accent */
-    --secondary: 173 80% 40%;
+    /* 10% - Accent (Success Green) */
+    --secondary: 142 71% 45%;
     --secondary-foreground: 0 0% 100%;
 
-    --muted: 220 14% 96%;
+    /* Muted backgrounds for sections */
+    --muted: 210 20% 96%;
     --muted-foreground: 215 16% 47%;
 
-    --accent: 173 58% 39%;
+    /* Accent for highlights */
+    --accent: 142 71% 45%;
     --accent-foreground: 0 0% 100%;
 
-    --destructive: 0 84% 60%;
+    /* Destructive states */
+    --destructive: 0 72% 51%;
     --destructive-foreground: 0 0% 100%;
 
-    --border: 220 13% 91%;
-    --input: 220 13% 91%;
+    /* Borders - subtle */
+    --border: 214 20% 92%;
+    --input: 214 20% 92%;
     --ring: 217 91% 60%;
 
-    --radius: 0.75rem;
+    /* Larger radius for organic feel */
+    --radius: 1rem;
 
     /* Medical theme gradients */
     --gradient-primary: linear-gradient(135deg, hsl(217 91% 60%), hsl(200 100% 60%));
@@ -71,33 +78,38 @@ All colors MUST be HSL.
   }
 
   .dark {
-    --background: 215 28% 7%;
+    /* 60% - Background (Dark navy) */
+    --background: 215 28% 10%;
     --foreground: 210 40% 98%;
 
-    --card: 215 28% 10%;
+    /* Cards with elevation */
+    --card: 215 28% 13%;
     --card-foreground: 210 40% 98%;
 
-    --popover: 215 28% 10%;
+    --popover: 215 28% 13%;
     --popover-foreground: 210 40% 98%;
 
-    --primary: 217 91% 60%;
+    /* 30% - Primary (Medical Blue - slightly brighter for dark) */
+    --primary: 217 91% 65%;
     --primary-foreground: 0 0% 100%;
 
-    --secondary: 173 80% 40%;
+    /* 10% - Accent (Success Green) */
+    --secondary: 142 71% 50%;
     --secondary-foreground: 0 0% 100%;
 
     --muted: 215 20% 17%;
-    --muted-foreground: 215 20% 65%;
+    --muted-foreground: 215 20% 70%;
 
-    --accent: 173 58% 39%;
+    --accent: 142 71% 50%;
     --accent-foreground: 0 0% 100%;
 
-    --destructive: 0 72% 51%;
+    --destructive: 0 72% 55%;
     --destructive-foreground: 210 40% 98%;
 
-    --border: 215 20% 20%;
-    --input: 215 20% 18%;
-    --ring: 217 91% 60%;
+    /* Borders - more visible in dark */
+    --border: 215 20% 22%;
+    --input: 215 20% 20%;
+    --ring: 217 91% 65%;
     
     /* Dark mode shadows */
     --shadow-soft: 0 4px 24px -4px hsl(0 0% 0% / 0.3);
@@ -136,12 +148,5 @@ All colors MUST be HSL.
   *[class*="animate-"],
   *[class*="transition-"] {
     transition: var(--transition-base);
-  }
-  
-  /* Hide Spline watermark */
-  spline-viewer::part(logo) {
-    display: none !important;
-    opacity: 0 !important;
-    visibility: hidden !important;
   }
 }
