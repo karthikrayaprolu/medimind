@@ -2,13 +2,6 @@ import { Shield, Lock, Award, CheckCircle2 } from "lucide-react";
 import LogoIcon from "@/components/LogoIcon";
 import ScrollReveal from "@/components/ScrollReveal";
 
-const trustIndicators = [
-  { icon: Shield, label: "HIPAA Compliant", description: "Full regulatory compliance" },
-  { icon: Lock, label: "End-to-End Encrypted", description: "256-bit encryption" },
-  { icon: Award, label: "FDA Registered", description: "Medical device standards" },
-  { icon: CheckCircle2, label: "ISO 27001", description: "Information security certified" },
-];
-
 const stats = [
   { value: "50K+", label: "Prescriptions Processed" },
   { value: "99.2%", label: "OCR Accuracy" },
@@ -77,33 +70,6 @@ const About = () => {
               </div>
             </div>
           </ScrollReveal>
-
-          {/* Trust Indicators Grid */}
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            {trustIndicators.map((indicator, index) => {
-              const Icon = indicator.icon;
-              return (
-                <ScrollReveal
-                  key={indicator.label}
-                  animation="fade-up"
-                  delay={0.2 + index * 0.08}
-                  className="h-full"
-                >
-                  <div className="flex flex-col items-center text-center p-5 bg-card rounded-2xl border border-border/60 shadow-soft hover:shadow-card transition-shadow duration-300 h-full">
-                    <div className="w-11 h-11 bg-primary/10 rounded-xl flex items-center justify-center mb-3">
-                      <Icon className="w-5 h-5 text-primary" strokeWidth={2} />
-                    </div>
-                    <span className="text-sm font-bold text-foreground mb-0.5">
-                      {indicator.label}
-                    </span>
-                    <span className="text-xs text-muted-foreground">
-                      {indicator.description}
-                    </span>
-                  </div>
-                </ScrollReveal>
-              );
-            })}
-          </div>
         </div>
       </div>
     </section>

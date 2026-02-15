@@ -17,8 +17,8 @@ const Footer = () => {
   ];
 
   const legalLinks = [
-    { label: "Privacy Policy", href: "#" },
-    { label: "Terms of Service", href: "#" },
+    { label: "Privacy", href: "#" },
+    { label: "Terms", href: "#" },
   ];
 
   const socialLinks = [
@@ -30,7 +30,72 @@ const Footer = () => {
 
   return (
     <footer id="contact" className="border-t border-border/60 bg-card">
-      <div className="container mx-auto px-4 sm:px-6 py-12">
+      {/* ── Mobile Footer ── */}
+      <div className="md:hidden px-5 py-8">
+        {/* Brand center */}
+        <div className="flex flex-col items-center text-center mb-6">
+          <div className="flex items-center gap-2 mb-2">
+            <LogoIcon size={30} className="text-primary" />
+            <span className="text-base font-bold tracking-tight text-foreground">
+              MediMind
+            </span>
+          </div>
+          <p className="text-xs text-muted-foreground max-w-[240px] leading-relaxed">
+            AI-driven prescription management & personalized reminders.
+          </p>
+        </div>
+
+        {/* Nav links — horizontal row */}
+        <div className="flex items-center justify-center flex-wrap gap-x-4 gap-y-1.5 mb-6">
+          {footerLinks.map((link) => (
+            <button
+              key={link.id}
+              onClick={() => scrollToSection(link.id)}
+              className="text-xs font-medium text-muted-foreground hover:text-primary transition-colors"
+            >
+              {link.label}
+            </button>
+          ))}
+        </div>
+
+        {/* Social icons — centered row */}
+        <div className="flex items-center justify-center gap-2 mb-6">
+          {socialLinks.map((social) => {
+            const Icon = social.icon;
+            return (
+              <a
+                key={social.label}
+                href={social.href}
+                aria-label={social.label}
+                className="w-9 h-9 bg-muted/60 border border-border/40 rounded-xl flex items-center justify-center text-muted-foreground hover:bg-primary hover:text-primary-foreground hover:border-primary transition-all duration-200"
+              >
+                <Icon className="w-4 h-4" strokeWidth={2} />
+              </a>
+            );
+          })}
+        </div>
+
+        {/* Divider + copyright + legal */}
+        <div className="pt-5 border-t border-border/40">
+          <p className="text-[11px] text-muted-foreground/70 text-center mb-2">
+            © 2026 MediMind — Empowering Smarter Healthcare
+          </p>
+          <div className="flex items-center justify-center gap-3">
+            {legalLinks.map((link) => (
+              <a
+                key={link.label}
+                href={link.href}
+                className="text-[11px] text-muted-foreground/60 hover:text-primary transition-colors"
+              >
+                {link.label}
+              </a>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      {/* ── Desktop Footer ── */}
+      <div className="hidden md:block container mx-auto px-4 sm:px-6 py-12">
         <div className="grid md:grid-cols-3 gap-10 mb-10">
           {/* Brand */}
           <div>

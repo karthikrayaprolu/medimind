@@ -28,6 +28,11 @@ import {
   Pencil,
   X,
   Check,
+  Bell,
+  Settings,
+  ChevronDown,
+  History,
+  Shield,
 } from "lucide-react";
 import LogoIcon from "@/components/LogoIcon";
 import { Button } from "@/components/ui/button";
@@ -39,6 +44,7 @@ import { ThemeToggle } from "@/components/ThemeToggle";
 import { prescriptionApi } from "@/lib/api";
 import { cn } from "@/lib/utils";
 import BottomNav from "@/components/BottomNav";
+import ProfileAvatar, { avatarIds } from "@/components/ProfileAvatar";
 
 interface Schedule {
   _id: string;
@@ -62,6 +68,8 @@ const Dashboard = () => {
   const { toast } = useToast();
   const navigate = useNavigate();
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const cameraInputRef = useRef<HTMLInputElement>(null);
+  const [showUploadOptions, setShowUploadOptions] = useState(false);
 
   const [activeTab, setActiveTab] = useState("home");
   const [schedules, setSchedules] = useState<Schedule[]>([]);
@@ -76,6 +84,39 @@ const Dashboard = () => {
     timings: [] as string[],
   });
   const [isSavingEdit, setIsSavingEdit] = useState(false);
+  const [showProfileMenu, setShowProfileMenu] = useState(false);
+  const [showNotifications, setShowNotifications] = useState(false);
+
+  // ── Profile State ──
+  const [userName, setUserName] = useState(() => {
+    try { return localStorage.getItem("medimind-user-name") || ""; } catch { return ""; }
+  });
+  const [userAvatar, setUserAvatar] = useState(() => {
+    try { return localStorage.getItem("medimind-user-avatar") || "m1"; } catch { return "m1"; }
+  });
+  const [showAvatarPicker, setShowAvatarPicker] = useState(false);
+  const [isEditingName, setIsEditingName] = useState(false);
+  const [editNameValue, setEditNameValue] = useState("");
+  const [notificationsEnabled, setNotificationsEnabled] = useState(() => {
+    try { return localStorage.getItem("medimind-notifications") !== "false"; } catch { return true; }
+  });
+  const [reminderSound, setReminderSound] = useState(() => {
+    try { return localStorage.getItem("medimind-reminder-sound") !== "false"; } catch { return true; }
+  });
+
+  // Persist profile settings
+  useEffect(() => {
+    try {
+      localStorage.setItem("medimind-user-name", userName);
+      localStorage.setItem("medimind-user-avatar", userAvatar);
+      localStorage.setItem("medimind-notifications", String(notificationsEnabled));
+      localStorage.setItem("medimind-reminder-sound", String(reminderSound));
+    } catch { }
+  }, [userName, userAvatar, notificationsEnabled, reminderSound]);
+
+  // Avatar options
+  const avatarOptionsMen = avatarIds.filter(id => id.startsWith("m"));
+  const avatarOptionsWomen = avatarIds.filter(id => id.startsWith("w"));
 
   useEffect(() => {
     if (token) {
@@ -144,6 +185,16 @@ const Dashboard = () => {
   };
 
   const handleUploadClick = () => {
+    setShowUploadOptions(true);
+  };
+
+  const handleCameraCapture = () => {
+    setShowUploadOptions(false);
+    cameraInputRef.current?.click();
+  };
+
+  const handleGalleryUpload = () => {
+    setShowUploadOptions(false);
     fileInputRef.current?.click();
   };
 
@@ -301,7 +352,7 @@ const Dashboard = () => {
       {/* Greeting */}
       <div className="mb-2">
         <h2 className="text-2xl font-extrabold text-foreground tracking-tight">
-          {getGreeting()} 👋
+          {getGreeting()}{userName ? `, ${userName.includes(" ") ? userName.split(" ")[0] : userName}` : ""} 👋
         </h2>
         <p className="text-sm text-muted-foreground mt-0.5">
           Here's your health overview
@@ -918,94 +969,410 @@ const Dashboard = () => {
 
   /* ──────────────────────────── PROFILE TAB ──────────────────────────── */
   const renderProfileTab = () => (
-    <div className="space-y-5 pb-24">
-      {/* Profile Header */}
-      <div className="text-center py-4">
-        <div className="mb-3 inline-flex h-20 w-20 items-center justify-center rounded-full bg-primary/10">
-          <User className="h-10 w-10 text-primary" strokeWidth={1.5} />
-        </div>
-        <h2 className="text-xl font-extrabold text-foreground tracking-tight">
-          Your Profile
-        </h2>
-        <p className="text-sm text-muted-foreground mt-0.5">
+    <div className="space-y-5 pb-28">
+      {/* ── Profile Header with Avatar & Name ── */}
+      <div className="text-center pt-2 pb-1">
+        {/* Avatar */}
+        <button
+          onClick={() => setShowAvatarPicker(true)}
+          className="relative inline-block mb-3 group"
+          aria-label="Change avatar"
+        >
+          <div className="w-20 h-20 rounded-full bg-gradient-to-br from-primary/15 to-primary/5 border-2 border-primary/20 overflow-hidden transition-transform group-active:scale-95">
+            <ProfileAvatar avatarId={userAvatar} size="lg" />
+          </div>
+          <div className="absolute -bottom-0.5 -right-0.5 w-7 h-7 rounded-full bg-primary flex items-center justify-center shadow-md border-2 border-card">
+            <Pencil className="h-3 w-3 text-primary-foreground" strokeWidth={2.5} />
+          </div>
+        </button>
+
+        {/* Editable Name */}
+        {isEditingName ? (
+          <div className="flex items-center justify-center gap-2 mt-1">
+            <input
+              type="text"
+              value={editNameValue}
+              onChange={(e) => setEditNameValue(e.target.value)}
+              placeholder="Enter your name"
+              autoFocus
+              className="w-44 text-center text-lg font-extrabold text-foreground bg-transparent border-b-2 border-primary focus:outline-none py-1"
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  setUserName(editNameValue.trim());
+                  setIsEditingName(false);
+                  toast({ title: "Name updated", description: "Your display name has been saved." });
+                } else if (e.key === "Escape") {
+                  setIsEditingName(false);
+                }
+              }}
+            />
+            <button
+              onClick={() => {
+                setUserName(editNameValue.trim());
+                setIsEditingName(false);
+                toast({ title: "Name updated", description: "Your display name has been saved." });
+              }}
+              className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center text-primary hover:bg-primary/20 transition-colors"
+            >
+              <Check className="h-4 w-4" strokeWidth={2.5} />
+            </button>
+            <button
+              onClick={() => setIsEditingName(false)}
+              className="w-8 h-8 rounded-lg bg-muted flex items-center justify-center text-muted-foreground hover:bg-muted/80 transition-colors"
+            >
+              <X className="h-4 w-4" strokeWidth={2.5} />
+            </button>
+          </div>
+        ) : (
+          <button
+            onClick={() => {
+              setEditNameValue(userName);
+              setIsEditingName(true);
+            }}
+            className="group flex items-center justify-center gap-1.5 mx-auto"
+          >
+            <h2 className="text-xl font-extrabold text-foreground tracking-tight">
+              {userName || "Tap to add name"}
+            </h2>
+            <Pencil className="h-3.5 w-3.5 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" strokeWidth={2} />
+          </button>
+        )}
+        <p className="text-sm text-muted-foreground mt-1">
           Manage your account & preferences
         </p>
       </div>
 
-      {/* Stats */}
+      {/* ── Stats Row ── */}
+      <div className="grid grid-cols-3 gap-2.5">
+        <Card className="p-3.5 bg-card border border-border/60 shadow-soft text-center">
+          <p className="text-xl font-extrabold text-primary">{prescriptions.length}</p>
+          <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider mt-0.5">Prescriptions</p>
+        </Card>
+        <Card className="p-3.5 bg-card border border-border/60 shadow-soft text-center">
+          <p className="text-xl font-extrabold text-primary">{schedules.length}</p>
+          <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider mt-0.5">Medications</p>
+        </Card>
+        <Card className="p-3.5 bg-card border border-border/60 shadow-soft text-center">
+          <p className="text-xl font-extrabold text-primary">{schedules.filter(s => s.enabled).length}</p>
+          <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider mt-0.5">Active</p>
+        </Card>
+      </div>
+
+      {/* ── Notifications ── */}
       <Card className="bg-card border border-border/60 shadow-soft overflow-hidden">
-        <div className="divide-y divide-border/60">
-          <div className="flex items-center justify-between px-5 py-4">
-            <div className="flex items-center gap-3">
-              <div className="w-9 h-9 rounded-xl bg-primary/10 flex items-center justify-center">
-                <FileText className="h-4 w-4 text-primary" strokeWidth={2} />
-              </div>
-              <span className="text-sm font-medium text-foreground">
-                Total Prescriptions
-              </span>
+        <div className="px-5 pt-4 pb-1.5">
+          <h3 className="font-bold text-foreground text-sm flex items-center gap-2">
+            <Bell className="h-4 w-4 text-primary" strokeWidth={2} />
+            Notifications
+          </h3>
+        </div>
+        <div className="divide-y divide-border/40">
+          <div className="flex items-center justify-between px-5 py-3.5">
+            <div>
+              <span className="text-sm font-medium text-foreground block">Push Notifications</span>
+              <span className="text-[11px] text-muted-foreground">Get reminded for your medications</span>
             </div>
-            <span className="text-sm font-extrabold text-primary">
-              {prescriptions.length}
-            </span>
+            <button
+              onClick={() => {
+                setNotificationsEnabled(!notificationsEnabled);
+                toast({
+                  title: notificationsEnabled ? "Notifications disabled" : "Notifications enabled",
+                  description: notificationsEnabled
+                    ? "You won't receive medication reminders"
+                    : "You'll receive timely medication reminders",
+                });
+              }}
+              className={cn(
+                "relative w-11 h-6 rounded-full transition-colors duration-300",
+                notificationsEnabled ? "bg-primary" : "bg-muted-foreground/30"
+              )}
+            >
+              <div
+                className={cn(
+                  "absolute top-0.5 w-5 h-5 rounded-full bg-white shadow-sm transition-transform duration-300",
+                  notificationsEnabled ? "translate-x-[22px]" : "translate-x-0.5"
+                )}
+              />
+            </button>
           </div>
-
-          <div className="flex items-center justify-between px-5 py-4">
-            <div className="flex items-center gap-3">
-              <div className="w-9 h-9 rounded-xl bg-secondary/10 flex items-center justify-center">
-                <Pill className="h-4 w-4 text-secondary" strokeWidth={2} />
-              </div>
-              <span className="text-sm font-medium text-foreground">
-                Active Medications
-              </span>
+          <div className="flex items-center justify-between px-5 py-3.5">
+            <div>
+              <span className="text-sm font-medium text-foreground block">Reminder Sound</span>
+              <span className="text-[11px] text-muted-foreground">Play a sound for medication alerts</span>
             </div>
-            <span className="text-sm font-extrabold text-secondary">
-              {schedules.length}
-            </span>
-          </div>
-
-          <div className="flex items-center justify-between px-5 py-4">
-            <div className="flex items-center gap-3">
-              <div className="w-9 h-9 rounded-xl bg-amber-50 dark:bg-amber-500/10 flex items-center justify-center">
-                <BellRing className="h-4 w-4 text-amber-600 dark:text-amber-400" strokeWidth={2} />
-              </div>
-              <span className="text-sm font-medium text-foreground">
-                Active Reminders
-              </span>
-            </div>
-            <span className="text-sm font-extrabold text-amber-600 dark:text-amber-400">
-              {schedules.filter((s) => s.enabled).length}
-            </span>
+            <button
+              onClick={() => {
+                setReminderSound(!reminderSound);
+                toast({
+                  title: reminderSound ? "Sound disabled" : "Sound enabled",
+                  description: reminderSound ? "Reminders will be silent" : "Reminders will play a sound",
+                });
+              }}
+              className={cn(
+                "relative w-11 h-6 rounded-full transition-colors duration-300",
+                reminderSound ? "bg-primary" : "bg-muted-foreground/30"
+              )}
+            >
+              <div
+                className={cn(
+                  "absolute top-0.5 w-5 h-5 rounded-full bg-white shadow-sm transition-transform duration-300",
+                  reminderSound ? "translate-x-[22px]" : "translate-x-0.5"
+                )}
+              />
+            </button>
           </div>
         </div>
       </Card>
 
-      {/* Settings */}
-      <Card className="bg-card border border-border/60 shadow-soft">
-        <div className="px-5 py-4">
-          <h3 className="font-bold text-foreground text-sm mb-3">Settings</h3>
-          <div className="flex items-center justify-between">
-            <span className="text-sm font-medium text-foreground">
-              Appearance
-            </span>
-            <ThemeToggle />
+      {/* ── Appearance ── */}
+      <Card className="bg-card border border-border/60 shadow-soft overflow-hidden">
+        <div className="flex items-center justify-between px-5 py-4">
+          <div className="flex items-center gap-3">
+            <div className="w-9 h-9 rounded-xl bg-muted flex items-center justify-center">
+              <Sun className="h-4 w-4 text-muted-foreground dark:hidden" strokeWidth={2} />
+              <Moon className="h-4 w-4 text-muted-foreground hidden dark:block" strokeWidth={2} />
+            </div>
+            <div>
+              <span className="text-sm font-medium text-foreground block">Appearance</span>
+              <span className="text-[11px] text-muted-foreground">Switch between light & dark</span>
+            </div>
+          </div>
+          <ThemeToggle />
+        </div>
+      </Card>
+
+      {/* ── Privacy & Data ── */}
+      <Card className="bg-card border border-border/60 shadow-soft overflow-hidden">
+        <div className="px-5 pt-4 pb-1.5">
+          <h3 className="font-bold text-foreground text-sm flex items-center gap-2">
+            <Shield className="h-4 w-4 text-primary" strokeWidth={2} />
+            Privacy & Data
+          </h3>
+        </div>
+        <div className="divide-y divide-border/40">
+          <div className="flex items-center justify-between px-5 py-3.5">
+            <div>
+              <span className="text-sm font-medium text-foreground block">Encryption</span>
+              <span className="text-[11px] text-muted-foreground">All data is encrypted in transit & at rest</span>
+            </div>
+            <div className="flex items-center gap-1 text-[11px] font-semibold text-primary bg-primary/8 px-2.5 py-1 rounded-lg">
+              <CheckCircle2 className="h-3 w-3" />
+              Active
+            </div>
+          </div>
+          <div className="flex items-center justify-between px-5 py-3.5">
+            <div>
+              <span className="text-sm font-medium text-foreground block">Your Data</span>
+              <span className="text-[11px] text-muted-foreground">
+                {prescriptions.length} prescription{prescriptions.length !== 1 ? "s" : ""}, {schedules.length} medication{schedules.length !== 1 ? "s" : ""} stored
+              </span>
+            </div>
+            <div className="flex items-center gap-1 text-[11px] font-semibold text-primary bg-primary/8 px-2.5 py-1 rounded-lg">
+              <Shield className="h-3 w-3" />
+              Secure
+            </div>
+          </div>
+          <div className="flex items-center justify-between px-5 py-3.5">
+            <div>
+              <span className="text-sm font-medium text-foreground block">Session</span>
+              <span className="text-[11px] text-muted-foreground">JWT-backed authenticated session</span>
+            </div>
+            <div className="flex items-center gap-1 text-[11px] font-semibold text-primary bg-primary/8 px-2.5 py-1 rounded-lg">
+              <CheckCircle2 className="h-3 w-3" />
+              Verified
+            </div>
           </div>
         </div>
       </Card>
 
-      {/* Sign Out */}
+      {/* ── Sign Out ── */}
       <Button
         onClick={handleLogout}
         variant="outline"
-        className="w-full rounded-xl border-destructive/30 text-destructive hover:bg-destructive hover:text-destructive-foreground shadow-none font-semibold h-11"
+        className="w-full rounded-xl border-destructive/30 text-destructive hover:bg-destructive hover:text-destructive-foreground shadow-none font-semibold h-12"
       >
         <LogOut className="mr-2 h-4 w-4" />
         Sign Out
       </Button>
+
+      {/* ── Avatar Picker Modal ── */}
+      {showAvatarPicker && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center px-4">
+          <div
+            className="absolute inset-0 bg-black/50 backdrop-blur-sm"
+            onClick={() => setShowAvatarPicker(false)}
+          />
+          <div className="relative w-full max-w-sm bg-card border border-border rounded-2xl p-6 animate-in fade-in zoom-in-95 duration-200 max-h-[85vh] overflow-y-auto">
+            {/* Handle bar for visual cue */}
+            <div className="w-10 h-1 rounded-full bg-border mx-auto mb-4" />
+
+            <div className="flex items-center justify-between mb-5">
+              <h3 className="text-lg font-extrabold text-foreground tracking-tight">
+                Choose Avatar
+              </h3>
+              <button
+                onClick={() => setShowAvatarPicker(false)}
+                className="w-8 h-8 rounded-xl bg-muted flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors"
+              >
+                <X className="h-4 w-4" strokeWidth={2} />
+              </button>
+            </div>
+
+            {/* Men */}
+            <p className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider mb-2">Men</p>
+            <div className="grid grid-cols-4 gap-3 mb-5">
+              {avatarOptionsMen.map((id) => (
+                <button
+                  key={id}
+                  onClick={() => {
+                    setUserAvatar(id);
+                    setShowAvatarPicker(false);
+                    toast({ title: "Avatar updated" });
+                  }}
+                  className={cn(
+                    "w-full aspect-square rounded-2xl flex items-center justify-center border-2 transition-all active:scale-95 overflow-hidden p-1",
+                    userAvatar === id
+                      ? "border-primary bg-primary/10 shadow-md"
+                      : "border-border/60 bg-card hover:border-primary/30"
+                  )}
+                >
+                  <ProfileAvatar avatarId={id} size="md" />
+                </button>
+              ))}
+            </div>
+
+            {/* Women */}
+            <p className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider mb-2">Women</p>
+            <div className="grid grid-cols-4 gap-3 pb-2">
+              {avatarOptionsWomen.map((id) => (
+                <button
+                  key={id}
+                  onClick={() => {
+                    setUserAvatar(id);
+                    setShowAvatarPicker(false);
+                    toast({ title: "Avatar updated" });
+                  }}
+                  className={cn(
+                    "w-full aspect-square rounded-2xl flex items-center justify-center border-2 transition-all active:scale-95 overflow-hidden p-1",
+                    userAvatar === id
+                      ? "border-primary bg-primary/10 shadow-md"
+                      : "border-border/60 bg-card hover:border-primary/30"
+                  )}
+                >
+                  <ProfileAvatar avatarId={id} size="md" />
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+
+  /* ──────────────────────────── HISTORY TAB ──────────────────────────── */
+  const renderHistoryTab = () => (
+    <div className="space-y-5 pb-28">
+      <div>
+        <h2 className="text-2xl font-extrabold text-foreground tracking-tight">
+          Prescription History
+        </h2>
+        <p className="text-sm text-muted-foreground mt-0.5">
+          {prescriptions.length} prescription{prescriptions.length !== 1 ? 's' : ''} uploaded
+        </p>
+      </div>
+
+      {isLoading ? (
+        <div className="flex items-center justify-center py-16">
+          <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        </div>
+      ) : prescriptions.length === 0 ? (
+        <Card className="p-8 text-center bg-card border border-border/60 shadow-soft">
+          <div className="mb-4 inline-flex h-14 w-14 items-center justify-center rounded-2xl bg-muted">
+            <History className="h-7 w-7 text-muted-foreground" />
+          </div>
+          <h3 className="mb-1.5 font-bold text-foreground">No history yet</h3>
+          <p className="mb-5 text-sm text-muted-foreground">
+            Upload your first prescription to get started
+          </p>
+          <Button
+            onClick={handleUploadClick}
+            variant="outline"
+            className="rounded-xl border-border shadow-none"
+          >
+            <FileUp className="mr-2 h-4 w-4" />
+            Upload Prescription
+          </Button>
+        </Card>
+      ) : (
+        <div className="space-y-3">
+          {/* Monthly groupings */}
+          {(() => {
+            const grouped: Record<string, Prescription[]> = {};
+            prescriptions.forEach((p) => {
+              const monthYear = new Date(p.created_at).toLocaleDateString("en-US", {
+                month: "long",
+                year: "numeric",
+              });
+              if (!grouped[monthYear]) grouped[monthYear] = [];
+              grouped[monthYear].push(p);
+            });
+
+            return Object.entries(grouped).map(([month, items]) => (
+              <div key={month}>
+                <div className="flex items-center gap-2 mb-2.5">
+                  <span className="text-xs font-bold text-muted-foreground uppercase tracking-wider">
+                    {month}
+                  </span>
+                  <div className="flex-1 h-px bg-border/60" />
+                  <span className="text-[10px] font-semibold text-muted-foreground bg-muted px-2 py-0.5 rounded-full">
+                    {items.length}
+                  </span>
+                </div>
+                <div className="space-y-2">
+                  {items.map((prescription, index) => (
+                    <Card
+                      key={prescription._id}
+                      className="p-4 bg-card border border-border/60 shadow-soft hover:border-primary/20 transition-colors"
+                    >
+                      <div className="flex items-center gap-3.5">
+                        <div className="flex-shrink-0 w-11 h-11 rounded-xl bg-gradient-to-br from-primary/15 to-primary/5 flex items-center justify-center">
+                          <FileText className="h-5 w-5 text-primary" strokeWidth={1.8} />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-semibold text-foreground">
+                            Prescription #{prescriptions.length - prescriptions.indexOf(prescription)}
+                          </p>
+                          <p className="text-xs text-muted-foreground mt-0.5">
+                            {new Date(prescription.created_at).toLocaleDateString("en-US", {
+                              weekday: "short",
+                              month: "short",
+                              day: "numeric",
+                              hour: "numeric",
+                              minute: "2-digit",
+                            })}
+                          </p>
+                        </div>
+                        <div className="flex-shrink-0">
+                          <div className="flex items-center gap-1 text-xs font-medium text-primary bg-primary/8 px-2.5 py-1 rounded-lg">
+                            <CheckCircle2 className="h-3 w-3" />
+                            Processed
+                          </div>
+                        </div>
+                      </div>
+                    </Card>
+                  ))}
+                </div>
+              </div>
+            ));
+          })()}
+        </div>
+      )}
     </div>
   );
 
   return (
     <div className="min-h-screen bg-background">
+      {/* Gallery file input */}
       <input
         ref={fileInputRef}
         type="file"
@@ -1013,19 +1380,276 @@ const Dashboard = () => {
         className="hidden"
         onChange={handleFileUpload}
       />
+      {/* Camera capture input */}
+      <input
+        ref={cameraInputRef}
+        type="file"
+        accept="image/*"
+        capture="environment"
+        className="hidden"
+        onChange={handleFileUpload}
+      />
+
+      {/* Upload Options Modal */}
+      {showUploadOptions && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center px-4">
+          <div
+            className="absolute inset-0 bg-black/50 backdrop-blur-sm"
+            onClick={() => setShowUploadOptions(false)}
+          />
+          <div className="relative w-full max-w-xs bg-card border border-border rounded-2xl p-5 animate-in fade-in zoom-in-95 duration-200">
+            <div className="w-10 h-1 rounded-full bg-border mx-auto mb-4" />
+            <h3 className="text-base font-extrabold text-foreground tracking-tight text-center mb-1">
+              Scan Prescription
+            </h3>
+            <p className="text-xs text-muted-foreground text-center mb-5">
+              Choose how to add your prescription
+            </p>
+
+            <div className="grid grid-cols-2 gap-3 mb-3">
+              {/* Camera Option */}
+              <button
+                onClick={handleCameraCapture}
+                className="flex flex-col items-center gap-2.5 p-4 rounded-2xl border-2 border-border/60 bg-card hover:border-primary/40 hover:bg-primary/5 transition-all active:scale-95 group"
+              >
+                <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-primary/15 to-primary/5 flex items-center justify-center group-hover:shadow-md transition-shadow">
+                  <Camera className="h-6 w-6 text-primary" strokeWidth={1.8} />
+                </div>
+                <div className="text-center">
+                  <p className="text-sm font-bold text-foreground">Camera</p>
+                  <p className="text-[10px] text-muted-foreground">Take a photo</p>
+                </div>
+              </button>
+
+              {/* Gallery Option */}
+              <button
+                onClick={handleGalleryUpload}
+                className="flex flex-col items-center gap-2.5 p-4 rounded-2xl border-2 border-border/60 bg-card hover:border-primary/40 hover:bg-primary/5 transition-all active:scale-95 group"
+              >
+                <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-primary/15 to-primary/5 flex items-center justify-center group-hover:shadow-md transition-shadow">
+                  <FileUp className="h-6 w-6 text-primary" strokeWidth={1.8} />
+                </div>
+                <div className="text-center">
+                  <p className="text-sm font-bold text-foreground">Gallery</p>
+                  <p className="text-[10px] text-muted-foreground">Upload image</p>
+                </div>
+              </button>
+            </div>
+
+            <button
+              onClick={() => setShowUploadOptions(false)}
+              className="w-full py-2.5 rounded-xl text-sm font-semibold text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Mobile Header */}
-      <header className="sticky top-0 z-40 border-b border-border/40 bg-card/90 backdrop-blur-xl md:hidden safe-area-inset-top">
-        <div className="flex items-center justify-between px-4 py-3">
-          <div className="flex items-center gap-2.5">
-            <LogoIcon size={36} className="text-primary" />
+      <header className="sticky top-0 z-40 border-b border-border/40 bg-card/85 backdrop-blur-2xl md:hidden safe-area-inset-top">
+        <div className="flex items-center justify-between px-4 py-2.5">
+          {/* Logo & App Name */}
+          <div
+            className="flex items-center gap-2.5 cursor-pointer"
+            onClick={() => setActiveTab("home")}
+          >
+            <LogoIcon size={34} className="text-primary" />
             <div>
-              <h1 className="text-base font-bold tracking-tight text-foreground">
+              <h1 className="text-[15px] font-extrabold tracking-tight text-foreground leading-tight">
                 MediMind
               </h1>
-              <p className="text-[10px] text-muted-foreground font-medium">
-                Your health companion
+              <p className="text-[10px] text-muted-foreground font-medium leading-tight">
+                Health companion
               </p>
+            </div>
+          </div>
+
+          {/* Right side actions */}
+          <div className="flex items-center gap-1">
+            {/* Notification Bell */}
+            <div className="relative">
+              <button
+                onClick={() => {
+                  setShowNotifications(!showNotifications);
+                  setShowProfileMenu(false);
+                }}
+                className={cn(
+                  "relative flex h-10 w-10 items-center justify-center rounded-xl transition-colors active:scale-95",
+                  showNotifications
+                    ? "bg-primary/10 text-primary"
+                    : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                )}
+                aria-label="Notifications"
+              >
+                <Bell className="h-[20px] w-[20px]" strokeWidth={1.8} />
+                {schedules.filter((s) => s.enabled).length > 0 && (
+                  <span className="absolute top-2 right-2 w-2 h-2 rounded-full bg-primary ring-2 ring-card" />
+                )}
+              </button>
+
+              {/* Notifications Dropdown */}
+              {showNotifications && (
+                <>
+                  <div
+                    className="fixed inset-0 z-40"
+                    onClick={() => setShowNotifications(false)}
+                  />
+                  <div className="absolute right-0 top-12 z-50 w-72 rounded-2xl border border-border/60 bg-card/95 backdrop-blur-2xl shadow-xl p-1.5 animate-in fade-in slide-in-from-top-2 duration-200">
+                    {/* Header */}
+                    <div className="px-3.5 py-3 flex items-center justify-between">
+                      <div>
+                        <p className="text-sm font-bold text-foreground">Reminders</p>
+                        <p className="text-[10px] text-muted-foreground">
+                          {schedules.filter(s => s.enabled).length} active of {schedules.length} total
+                        </p>
+                      </div>
+                      <div className="flex items-center gap-1 text-[10px] font-bold text-primary bg-primary/10 px-2 py-1 rounded-lg">
+                        {(() => {
+                          const h = new Date().getHours();
+                          if (h < 12) return "🌅 Morning";
+                          if (h < 17) return "☀️ Afternoon";
+                          if (h < 21) return "🌇 Evening";
+                          return "🌙 Night";
+                        })()}
+                      </div>
+                    </div>
+
+                    <div className="h-px bg-border/60 mx-2" />
+
+                    {/* Reminder List */}
+                    <div className="max-h-64 overflow-y-auto">
+                      {schedules.length === 0 ? (
+                        <div className="px-3.5 py-6 text-center">
+                          <BellRing className="h-8 w-8 text-muted-foreground/30 mx-auto mb-2" />
+                          <p className="text-xs font-medium text-muted-foreground">No reminders yet</p>
+                          <p className="text-[10px] text-muted-foreground/70 mt-0.5">Upload a prescription to get started</p>
+                        </div>
+                      ) : (
+                        schedules.map((schedule) => {
+                          const currentPeriod = (() => {
+                            const h = new Date().getHours();
+                            if (h < 12) return "morning";
+                            if (h < 17) return "afternoon";
+                            if (h < 21) return "evening";
+                            return "night";
+                          })();
+                          const isDueNow = schedule.enabled && schedule.timings.map(t => t.toLowerCase()).includes(currentPeriod);
+
+                          return (
+                            <div
+                              key={schedule._id}
+                              className={cn(
+                                "flex items-center gap-3 px-3.5 py-2.5 rounded-xl mx-1 my-0.5 transition-colors",
+                                isDueNow ? "bg-primary/8" : "hover:bg-muted/50"
+                              )}
+                            >
+                              <div className={cn(
+                                "w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0",
+                                schedule.enabled ? "bg-primary/10" : "bg-muted"
+                              )}>
+                                <Pill className={cn(
+                                  "h-3.5 w-3.5",
+                                  schedule.enabled ? "text-primary" : "text-muted-foreground"
+                                )} strokeWidth={2} />
+                              </div>
+                              <div className="flex-1 min-w-0">
+                                <p className={cn(
+                                  "text-xs font-semibold truncate",
+                                  schedule.enabled ? "text-foreground" : "text-muted-foreground line-through"
+                                )}>
+                                  {schedule.medicine_name}
+                                </p>
+                                <p className="text-[10px] text-muted-foreground">
+                                  {schedule.dosage} · {schedule.timings.map(t =>
+                                    t.charAt(0).toUpperCase() + t.slice(1)
+                                  ).join(", ")}
+                                </p>
+                              </div>
+                              {isDueNow && (
+                                <span className="flex-shrink-0 text-[9px] font-bold text-primary bg-primary/10 px-1.5 py-0.5 rounded">
+                                  NOW
+                                </span>
+                              )}
+                            </div>
+                          );
+                        })
+                      )}
+                    </div>
+
+                    {schedules.length > 0 && (
+                      <>
+                        <div className="h-px bg-border/60 mx-2" />
+                        <button
+                          onClick={() => {
+                            setActiveTab("schedules");
+                            setShowNotifications(false);
+                          }}
+                          className="flex items-center justify-center w-full px-3.5 py-2.5 rounded-xl text-xs font-semibold text-primary hover:bg-muted transition-colors"
+                        >
+                          View All Medications
+                        </button>
+                      </>
+                    )}
+                  </div>
+                </>
+              )}
+            </div>
+
+            {/* Profile Avatar */}
+            <div className="relative">
+              <button
+                onClick={() => {
+                  setShowProfileMenu(!showProfileMenu);
+                  setShowNotifications(false);
+                }}
+                className={cn(
+                  "flex h-10 w-10 items-center justify-center rounded-xl transition-all active:scale-95",
+                  activeTab === "profile" || showProfileMenu
+                    ? "bg-primary/10 text-primary"
+                    : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                )}
+                aria-label="Profile menu"
+              >
+                <div className="w-7 h-7 rounded-lg overflow-hidden">
+                  <ProfileAvatar avatarId={userAvatar} size="sm" />
+                </div>
+              </button>
+
+              {/* Profile Dropdown */}
+              {showProfileMenu && (
+                <>
+                  {/* Backdrop */}
+                  <div
+                    className="fixed inset-0 z-40"
+                    onClick={() => setShowProfileMenu(false)}
+                  />
+                  {/* Menu */}
+                  <div className="absolute right-0 top-12 z-50 w-56 rounded-2xl border border-border/60 bg-card/95 backdrop-blur-2xl shadow-xl p-1.5 animate-in fade-in slide-in-from-top-2 duration-200">
+                    <button
+                      onClick={() => {
+                        setActiveTab("profile");
+                        setShowProfileMenu(false);
+                      }}
+                      className="flex items-center gap-3 w-full px-3.5 py-3 rounded-xl text-sm font-medium text-foreground hover:bg-muted transition-colors"
+                    >
+                      <User className="h-4 w-4 text-muted-foreground" strokeWidth={2} />
+                      My Profile
+                    </button>
+                    <div className="h-px bg-border/60 mx-3 my-1" />
+                    <button
+                      onClick={() => {
+                        setShowProfileMenu(false);
+                        handleLogout();
+                      }}
+                      className="flex items-center gap-3 w-full px-3.5 py-3 rounded-xl text-sm font-medium text-destructive hover:bg-destructive/10 transition-colors"
+                    >
+                      <LogOut className="h-4 w-4" strokeWidth={2} />
+                      Sign Out
+                    </button>
+                  </div>
+                </>
+              )}
             </div>
           </div>
         </div>
@@ -1085,6 +1709,7 @@ const Dashboard = () => {
           {activeTab === "schedules" && renderSchedulesTab()}
           {activeTab === "insights" && renderInsightsTab()}
           {activeTab === "profile" && renderProfileTab()}
+          {activeTab === "history" && renderHistoryTab()}
         </div>
 
         <div className="hidden md:block space-y-6 pb-6">
