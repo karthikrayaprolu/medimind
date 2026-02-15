@@ -1,15 +1,14 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
-/* Definition of the design system. All colors, gradients, fonts, etc should be defined here. 
-All colors MUST be HSL.
-*/
-
-/* globals.css */
+/* ─── Scrollbar ─── */
 .no-scrollbar::-webkit-scrollbar {
   display: none;
 }
+
 .no-scrollbar {
   -ms-overflow-style: none;
   scrollbar-width: none;
@@ -17,114 +16,96 @@ All colors MUST be HSL.
 
 @layer base {
   :root {
-    /* 60% - Background (Light neutral) */
-    --background: 210 20% 98%;
-    --foreground: 215 25% 15%;
+    /* ── Background & Surface ── */
+    --background: 30 25% 98%;
+    --foreground: 20 20% 12%;
 
-    /* Cards with subtle elevation */
     --card: 0 0% 100%;
-    --card-foreground: 215 25% 15%;
+    --card-foreground: 20 20% 12%;
 
     --popover: 0 0% 100%;
-    --popover-foreground: 215 25% 15%;
+    --popover-foreground: 20 20% 12%;
 
-    /* 30% - Primary (Medical Blue) */
-    --primary: 217 91% 60%;
+    /* ── Primary: Burnt Orange 600 ── */
+    --primary: 24 90% 46%;
     --primary-foreground: 0 0% 100%;
-    
-    /* 10% - Accent (Success Green) */
-    --secondary: 142 71% 45%;
+
+    /* ── Secondary: Deep Amber ── */
+    --secondary: 32 95% 44%;
     --secondary-foreground: 0 0% 100%;
 
-    /* Muted backgrounds for sections */
-    --muted: 210 20% 96%;
-    --muted-foreground: 215 16% 47%;
+    /* ── Muted & Surface ── */
+    --muted: 30 18% 95%;
+    --muted-foreground: 20 12% 46%;
 
-    /* Accent for highlights */
-    --accent: 142 71% 45%;
+    /* ── Accent: Warm Peach ── */
+    --accent: 16 80% 56%;
     --accent-foreground: 0 0% 100%;
 
-    /* Destructive states */
+    /* ── Destructive ── */
     --destructive: 0 72% 51%;
     --destructive-foreground: 0 0% 100%;
 
-    /* Borders - subtle */
-    --border: 214 20% 92%;
-    --input: 214 20% 92%;
-    --ring: 217 91% 60%;
+    /* ── Borders ── */
+    --border: 30 12% 90%;
+    --input: 30 12% 90%;
+    --ring: 24 90% 46%;
 
-    /* Larger radius for organic feel */
-    --radius: 1rem;
+    --radius: 0.875rem;
 
-    /* Medical theme gradients */
-    --gradient-primary: linear-gradient(135deg, hsl(217 91% 60%), hsl(200 100% 60%));
-    --gradient-hero: linear-gradient(180deg, hsl(0 0% 100%), hsl(220 14% 96%));
-    
-    /* Shadows */
-    --shadow-soft: 0 4px 24px -4px hsl(217 91% 60% / 0.1);
-    --shadow-glow: 0 0 40px hsl(217 91% 60% / 0.15);
-    
-    /* Animations */
-    --transition-base: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-
-    --sidebar-background: 0 0% 98%;
+    /* Sidebar */
+    --sidebar-background: 30 15% 97%;
     --sidebar-foreground: 240 5.3% 26.1%;
     --sidebar-primary: 240 5.9% 10%;
     --sidebar-primary-foreground: 0 0% 98%;
-    --sidebar-accent: 240 4.8% 95.9%;
+    --sidebar-accent: 30 12% 95%;
     --sidebar-accent-foreground: 240 5.9% 10%;
-    --sidebar-border: 220 13% 91%;
-    --sidebar-ring: 217.2 91.2% 59.8%;
+    --sidebar-border: 30 12% 90%;
+    --sidebar-ring: 24 90% 46%;
   }
 
   .dark {
-    /* 60% - Background (Dark navy) */
-    --background: 215 28% 10%;
-    --foreground: 210 40% 98%;
+    /* ── Background & Surface ── */
+    --background: 20 18% 8%;
+    --foreground: 30 30% 96%;
 
-    /* Cards with elevation */
-    --card: 215 28% 13%;
-    --card-foreground: 210 40% 98%;
+    --card: 20 16% 12%;
+    --card-foreground: 30 30% 96%;
 
-    --popover: 215 28% 13%;
-    --popover-foreground: 210 40% 98%;
+    --popover: 20 16% 12%;
+    --popover-foreground: 30 30% 96%;
 
-    /* 30% - Primary (Medical Blue - slightly brighter for dark) */
-    --primary: 217 91% 65%;
+    /* ── Primary: Orange 400 (brighter for dark) ── */
+    --primary: 24 85% 55%;
     --primary-foreground: 0 0% 100%;
 
-    /* 10% - Accent (Success Green) */
-    --secondary: 142 71% 50%;
+    /* ── Secondary: Amber ── */
+    --secondary: 32 90% 52%;
     --secondary-foreground: 0 0% 100%;
 
-    --muted: 215 20% 17%;
-    --muted-foreground: 215 20% 70%;
+    --muted: 20 14% 16%;
+    --muted-foreground: 20 14% 64%;
 
-    --accent: 142 71% 50%;
+    --accent: 16 75% 62%;
     --accent-foreground: 0 0% 100%;
 
-    --destructive: 0 72% 55%;
-    --destructive-foreground: 210 40% 98%;
+    --destructive: 0 70% 55%;
+    --destructive-foreground: 30 30% 96%;
 
-    /* Borders - more visible in dark */
-    --border: 215 20% 22%;
-    --input: 215 20% 20%;
-    --ring: 217 91% 65%;
-    
-    /* Dark mode shadows */
-    --shadow-soft: 0 4px 24px -4px hsl(0 0% 0% / 0.3);
-    --shadow-glow: 0 0 40px hsl(217 91% 60% / 0.2);
-    
-    /* Updated gradient for dark mode */
-    --gradient-primary: linear-gradient(135deg, hsl(217 91% 60%), hsl(200 100% 60%));
-    --sidebar-background: 240 5.9% 10%;
+    /* ── Borders ── */
+    --border: 20 14% 20%;
+    --input: 20 14% 18%;
+    --ring: 24 85% 55%;
+
+    /* Sidebar */
+    --sidebar-background: 20 18% 8%;
     --sidebar-foreground: 240 4.8% 95.9%;
-    --sidebar-primary: 224.3 76.3% 48%;
+    --sidebar-primary: 24 85% 55%;
     --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 240 3.7% 15.9%;
+    --sidebar-accent: 20 14% 16%;
     --sidebar-accent-foreground: 240 4.8% 95.9%;
-    --sidebar-border: 240 3.7% 15.9%;
-    --sidebar-ring: 217.2 91.2% 59.8%;
+    --sidebar-border: 20 14% 20%;
+    --sidebar-ring: 24 85% 55%;
   }
 }
 
@@ -133,20 +114,22 @@ All colors MUST be HSL.
     @apply border-border;
   }
 
+  html {
+    scroll-behavior: smooth;
+    -webkit-tap-highlight-color: transparent;
+  }
+
   body {
-    @apply bg-background text-foreground transition-colors duration-300;
+    @apply bg-background text-foreground antialiased;
+    font-family: 'Inter', system-ui, -apple-system, sans-serif;
   }
-  
-  /* Smooth transitions for dark mode */
-  * {
-    transition-property: background-color, border-color, color, fill, stroke;
-    transition-duration: 300ms;
-    transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
-  }
-  
-  /* Preserve transitions for animations */
-  *[class*="animate-"],
-  *[class*="transition-"] {
-    transition: var(--transition-base);
-  }
+}
+
+/* ─── Utility: Safe Area ─── */
+.safe-area-inset-bottom {
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+.safe-area-inset-top {
+  padding-top: env(safe-area-inset-top, 0px);
 }

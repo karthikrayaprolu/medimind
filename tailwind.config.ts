@@ -3,17 +3,25 @@ import tailwindcssAnimate from "tailwindcss-animate";
 
 export default {
   darkMode: ["class"],
-  content: ["./pages/**/*.{ts,tsx}", "./components/**/*.{ts,tsx}", "./app/**/*.{ts,tsx}", "./src/**/*.{ts,tsx}"],
+  content: [
+    "./pages/**/*.{ts,tsx}",
+    "./components/**/*.{ts,tsx}",
+    "./app/**/*.{ts,tsx}",
+    "./src/**/*.{ts,tsx}",
+  ],
   prefix: "",
   theme: {
     container: {
       center: true,
-      padding: "2rem",
+      padding: "1.25rem",
       screens: {
         "2xl": "1400px",
       },
     },
     extend: {
+      fontFamily: {
+        sans: ['"Inter"', "system-ui", "-apple-system", "sans-serif"],
+      },
       colors: {
         border: "hsl(var(--border))",
         input: "hsl(var(--input))",
@@ -65,6 +73,7 @@ export default {
         sm: "calc(var(--radius) - 4px)",
         xl: "calc(var(--radius) + 4px)",
         "2xl": "calc(var(--radius) + 8px)",
+        "3xl": "1.5rem",
       },
       keyframes: {
         "fade-in": {
@@ -79,11 +88,26 @@ export default {
           "0%": { transform: "translateY(-10px)", opacity: "0" },
           "100%": { transform: "translateY(0)", opacity: "1" },
         },
+        "scale-in": {
+          "0%": { transform: "scale(0.95)", opacity: "0" },
+          "100%": { transform: "scale(1)", opacity: "1" },
+        },
+        "float": {
+          "0%, 100%": { transform: "translateY(0px)" },
+          "50%": { transform: "translateY(-6px)" },
+        },
       },
       animation: {
         "fade-in": "fade-in 0.3s ease-out",
         "slide-up": "slide-up 0.4s ease-out",
         "slide-down": "slide-down 0.4s ease-out",
+        "scale-in": "scale-in 0.3s ease-out",
+        "float": "float 4s ease-in-out infinite",
+      },
+      boxShadow: {
+        "soft": "0 2px 12px -3px rgba(0, 0, 0, 0.08)",
+        "card": "0 1px 3px rgba(0, 0, 0, 0.04), 0 4px 12px rgba(0, 0, 0, 0.06)",
+        "elevated": "0 8px 30px rgba(0, 0, 0, 0.08)",
       },
     },
   },

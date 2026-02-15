@@ -93,47 +93,84 @@ MediMind - AI-Powered Prescription Management
     
     html_body = f"""
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <style>
-        body {{ font-family: Arial, sans-serif; line-height: 1.6; color: #333; }}
-        .container {{ max-width: 600px; margin: 0 auto; padding: 20px; }}
-        .header {{ background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 30px; text-align: center; border-radius: 10px 10px 0 0; }}
-        .content {{ background: #f9f9f9; padding: 30px; border-radius: 0 0 10px 10px; }}
-        .pill-icon {{ font-size: 48px; margin-bottom: 10px; }}
-        .medicine-card {{ background: white; padding: 20px; border-left: 4px solid #667eea; margin: 20px 0; border-radius: 5px; }}
-        .detail {{ margin: 10px 0; }}
-        .label {{ font-weight: bold; color: #667eea; }}
-        .footer {{ text-align: center; margin-top: 30px; color: #888; font-size: 12px; }}
+        * {{ margin: 0; padding: 0; box-sizing: border-box; }}
+        body {{ font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; line-height: 1.6; color: #1a1a1a; background-color: #f5f0ec; }}
+        .wrapper {{ max-width: 560px; margin: 0 auto; padding: 32px 16px; }}
+        .card {{ background: #ffffff; border-radius: 16px; overflow: hidden; }}
+
+        /* Header */
+        .header {{ background-color: #E8590C; padding: 28px 24px; text-align: center; }}
+        .header-logo {{ font-size: 32px; margin-bottom: 4px; }}
+        .header-title {{ color: #ffffff; font-size: 20px; font-weight: 800; letter-spacing: -0.3px; margin: 0; }}
+        .header-subtitle {{ color: rgba(255,255,255,0.8); font-size: 13px; font-weight: 500; margin-top: 2px; }}
+
+        /* Body */
+        .body {{ padding: 28px 24px; }}
+        .greeting {{ font-size: 15px; color: #555; margin-bottom: 20px; }}
+
+        /* Medicine Card */
+        .med-card {{ background: #FDF9F7; border: 1px solid #f0e6df; border-left: 4px solid #E8590C; border-radius: 12px; padding: 20px; margin-bottom: 20px; }}
+        .med-row {{ display: flex; justify-content: space-between; align-items: center; padding: 8px 0; }}
+        .med-row + .med-row {{ border-top: 1px solid #f0e6df; }}
+        .med-label {{ font-size: 12px; font-weight: 600; color: #888; text-transform: uppercase; letter-spacing: 0.5px; }}
+        .med-value {{ font-size: 15px; font-weight: 700; color: #1a1a1a; text-align: right; }}
+        .med-value.primary {{ color: #E8590C; }}
+
+        /* CTA */
+        .cta-text {{ font-size: 14px; color: #555; margin-bottom: 24px; line-height: 1.7; }}
+        .cta-note {{ display: inline-block; background: #FDF9F7; border: 1px solid #f0e6df; border-radius: 8px; padding: 10px 16px; font-size: 13px; color: #E8590C; font-weight: 600; }}
+
+        /* Footer */
+        .footer {{ padding: 20px 24px; border-top: 1px solid #f5f0ec; text-align: center; }}
+        .footer-brand {{ font-size: 13px; font-weight: 700; color: #E8590C; margin-bottom: 4px; }}
+        .footer-text {{ font-size: 11px; color: #aaa; line-height: 1.5; }}
     </style>
 </head>
 <body>
-    <div class="container">
-        <div class="header">
-            <div class="pill-icon">💊</div>
-            <h1>Medication Reminder</h1>
-        </div>
-        <div class="content">
-            <p>Hello,</p>
-            <p>This is your medication reminder from <strong>MediMind</strong>.</p>
-            
-            <div class="medicine-card">
-                <div class="detail">
-                    <span class="label">Medicine:</span> {medicine_name}
+    <div class="wrapper">
+        <div class="card">
+            <!-- Header -->
+            <div class="header">
+                <div class="header-logo">💊</div>
+                <h1 class="header-title">Medication Reminder</h1>
+                <p class="header-subtitle">It's time to take your medicine</p>
+            </div>
+
+            <!-- Body -->
+            <div class="body">
+                <p class="greeting">Hello, here's your scheduled reminder from MediMind.</p>
+
+                <!-- Medicine Details -->
+                <div class="med-card">
+                    <div class="med-row">
+                        <span class="med-label">Medicine</span>
+                        <span class="med-value primary">{medicine_name}</span>
+                    </div>
+                    <div class="med-row">
+                        <span class="med-label">Dosage</span>
+                        <span class="med-value">{dosage}</span>
+                    </div>
+                    <div class="med-row">
+                        <span class="med-label">Time</span>
+                        <span class="med-value">{timing.capitalize()}</span>
+                    </div>
                 </div>
-                <div class="detail">
-                    <span class="label">Dosage:</span> {dosage}
-                </div>
-                <div class="detail">
-                    <span class="label">Time:</span> {timing.capitalize()}
+
+                <p class="cta-text">Please take your medication as prescribed by your doctor. Staying consistent helps your treatment work best.</p>
+                <div style="text-align: center;">
+                    <span class="cta-note">✓ Stay on track with MediMind</span>
                 </div>
             </div>
-            
-            <p>Please take your medication as prescribed.</p>
-            
+
+            <!-- Footer -->
             <div class="footer">
-                <p>MediMind - AI-Powered Prescription Management</p>
-                <p>This is an automated reminder. Please do not reply to this email.</p>
+                <p class="footer-brand">MediMind</p>
+                <p class="footer-text">AI-Powered Prescription Management<br>This is an automated reminder. Do not reply to this email.</p>
             </div>
         </div>
     </div>

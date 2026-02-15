@@ -94,7 +94,7 @@ export const authApi = {
     });
 
     const result = await response.json();
-    
+
     if (!response.ok) {
       throw new Error(result.error || result.detail || "Login failed");
     }
@@ -117,7 +117,7 @@ export const authApi = {
     });
 
     const result = await response.json();
-    
+
     if (!response.ok) {
       throw new Error(result.error || result.detail || "Signup failed");
     }
@@ -281,6 +281,30 @@ export const prescriptionApi = {
 
     if (!response.ok) {
       throw new Error(result.error || result.detail || "Delete failed");
+    }
+
+    return result;
+  },
+
+  async updateSchedule(
+    scheduleId: string,
+    data: {
+      medicine_name?: string;
+      dosage?: string;
+      frequency?: string;
+      timings?: string[];
+    }
+  ): Promise<{ success: boolean; message: string; schedule: Schedule }> {
+    const response = await fetch(`${API_BASE_URL}/api/schedule/${scheduleId}`, {
+      method: "PUT",
+      headers: getAuthHeaders(),
+      body: JSON.stringify(data),
+    });
+
+    const result = await response.json();
+
+    if (!response.ok) {
+      throw new Error(result.error || result.detail || "Update failed");
     }
 
     return result;

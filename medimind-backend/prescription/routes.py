@@ -56,11 +56,22 @@ class ScheduleToggle(BaseModel):
     schedule_id: str
     enabled: bool
 
+class ScheduleUpdate(BaseModel):
+    medicine_name: str = None
+    dosage: str = None
+    frequency: str = None
+    timings: List[str] = None
+
 # ==== HELPERS ====
 def serialize_doc(doc):
-    """Convert ObjectId to str for JSON response"""
-    if doc and "_id" in doc:
+    """Convert ObjectId and datetime fields to str for JSON response"""
+    if not doc:
+        return doc
+    if "_id" in doc:
         doc["_id"] = str(doc["_id"])
+    for key, value in doc.items():
+        if isinstance(value, datetime):
+            doc[key] = value.isoformat()
     return doc
 
 def validate_image_quality(image_path: str) -> Tuple[bool, str, dict]:
@@ -407,3 +418,57 @@ async def delete_schedule(schedule_id: str):
         raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.put("/schedule/{schedule_id}")
+async def update_schedule(schedule_id: str, update_data: ScheduleUpdate):
+    """Update a specific schedule's fields"""
+    try:
+        # Build update dict from provided (non-None) fields
+        update_fields = {}
+        
+        if update_data.medicine_name is not None:
+            update_fields["medicine_name"] = update_data.medicine_name.strip()
+        
+        if update_data.dosage is not None:
+            update_fields["dosage"] = update_data.dosage.strip()
+        
+        if update_data.frequency is not None:
+            update_fields["frequency"] = update_data.frequency.strip()
+        
+        if update_data.timings is not None:
+            valid_timings = ["morning", "afternoon", "evening", "night"]
+            cleaned_timings = [t for t in update_data.timings if t in valid_timings]
+            if not cleaned_timings:
+                raise HTTPException(
+                    status_code=400,
+                    detail="At least one valid timing is required (morning, afternoon, evening, night)"
+                )
+            update_fields["timings"] = cleaned_timings
+        
+        if not update_fields:
+            raise HTTPException(status_code=400, detail="No fields to update")
+        
+        update_fields["updated_at"] = datetime.utcnow()
+        
+        result = sync_schedules.update_one(
+            {"_id": ObjectId(schedule_id)},
+            {"$set": update_fields}
+        )
+        
+        if result.matched_count == 0:
+            raise HTTPException(status_code=404, detail="Schedule not found")
+        
+        # Return the updated document
+        updated_doc = sync_schedules.find_one({"_id": ObjectId(schedule_id)})
+        
+        return JSONResponse({
+            "success": True,
+            "message": "Schedule updated successfully",
+            "schedule": serialize_doc(updated_doc)
+        })
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+

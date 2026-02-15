@@ -1,89 +1,116 @@
-import { LogIn, UploadCloud, Server, Scan, FileText, CalendarCheck } from "lucide-react";
-import { Card } from "@/components/ui/card";
+import {
+  LogIn,
+  UploadCloud,
+  Scan,
+  FileText,
+  CalendarCheck,
+  BellRing,
+} from "lucide-react";
 import ScrollReveal from "@/components/ScrollReveal";
-import ParallaxSection from "@/components/ParallaxSection";
 
 const steps = [
   {
     icon: LogIn,
-    title: "Authenticate Securely",
-    description: "Users land on MediMind, sign in, and receive JWT-backed access so every action is tied to a verified identity.",
+    title: "Sign In Securely",
+    description:
+      "Create an account or log in with encrypted, JWT-backed authentication tied to your verified identity.",
     number: "01",
   },
   {
     icon: UploadCloud,
     title: "Upload Prescription",
-    description: "Images are optionally compressed on-device, then sent through the /upload-prescription endpoint with processing status updates.",
+    description:
+      "Snap a photo or select an image. Your prescription is securely uploaded and validated instantly.",
     number: "02",
   },
   {
-    icon: Server,
-    title: "Gateway Intake",
-    description: "FastAPI receives the file, user metadata, and timestamps, staging each asset in temporary storage ready for downstream services.",
+    icon: Scan,
+    title: "AI Extraction",
+    description:
+      "Our OCR engine processes handwritten or printed text, extracting medication names, dosages, and instructions.",
     number: "03",
   },
   {
-    icon: Scan,
-    title: "OCR Extraction",
-    description: "An EasyOCR service cleans and interprets handwritten notes into dosage lines, normalizing text and fixing common recognition errors.",
+    icon: FileText,
+    title: "Smart Structuring",
+    description:
+      "AI transforms raw extracted text into validated, structured medication data you can review and trust.",
     number: "04",
   },
   {
-    icon: FileText,
-    title: "Structured Understanding",
-    description: "Language reasoning services convert raw text into validated JSON for medicines, dosing cadence, timings, and durations via Pydantic models.",
+    icon: CalendarCheck,
+    title: "Schedule Created",
+    description:
+      "Medication schedules are automatically generated with the right dosage, frequency, and timing.",
     number: "05",
   },
   {
-    icon: CalendarCheck,
-    title: "Reminders & History",
-    description: "Schedules populate MongoDB alongside the source image, enabling automated notifications, PDF exports, edits, and longitudinal insights.",
+    icon: BellRing,
+    title: "Get Reminders",
+    description:
+      "Receive timely push notifications and email alerts so you never miss a dose again.",
     number: "06",
   },
 ];
 
-const StepCard = ({ step, index }: { step: typeof steps[0]; index: number }) => {
-  const Icon = step.icon;
-
-  return (
-    <ScrollReveal animation="fade-up" delay={index * 0.1} className="h-full">
-      <Card className="p-6 h-full bg-card hover:shadow-lg transition-all duration-300 border border-border group hover:border-primary/50">
-        <div className="mb-4 w-12 h-12 bg-primary rounded-lg flex items-center justify-center group-hover:scale-110 transition-transform duration-300">
-          <Icon className="w-6 h-6 text-white" />
-        </div>
-        <div className="flex items-center gap-2 mb-3">
-          <span className="text-primary font-bold text-sm">Step {step.number}</span>
-        </div>
-        <h3 className="text-xl font-bold text-foreground mb-3">{step.title}</h3>
-        <p className="text-muted-foreground leading-relaxed">{step.description}</p>
-      </Card>
-    </ScrollReveal>
-  );
-};
-
 const HowItWorks = () => {
   return (
-    <section id="how-it-works" className="py-20 bg-muted/30">
-      <div className="container mx-auto px-4 sm:px-6 lg:px-8">
+    <section id="how-it-works" className="py-20 md:py-24 bg-muted/40">
+      <div className="container mx-auto px-4 sm:px-6">
         <ScrollReveal animation="fade-up" className="mx-auto">
-          <div className="text-center mb-16">
-            <h2 className="text-4xl md:text-5xl font-bold text-foreground mb-4">
-              How It Works
+          <div className="text-center mb-14">
+            <div className="inline-flex items-center gap-2 mb-4 px-3.5 py-1.5 bg-primary/8 border border-primary/15 rounded-full">
+              <span className="text-primary font-semibold text-xs uppercase tracking-wider">
+                How It Works
+              </span>
+            </div>
+            <h2 className="text-3xl md:text-4xl font-extrabold text-foreground mb-4 tracking-tight">
+              From Upload to Reminder in{" "}
+              <span className="text-primary">6 Steps</span>
             </h2>
-            <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
-              Follow the journey from upload to actionable medication support in six orchestrated stages.
+            <p className="text-lg text-muted-foreground max-w-xl mx-auto">
+              Follow your prescription's journey through our intelligent
+              processing pipeline.
             </p>
           </div>
         </ScrollReveal>
 
-        <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {steps.map((step, index) => (
-            <div key={step.number}>
-              <ParallaxSection speed={index % 2 === 0 ? 0 : 0.05}>
-                <StepCard step={step} index={index} />
-              </ParallaxSection>
-            </div>
-          ))}
+        {/* Timeline Grid */}
+        <div className="max-w-3xl mx-auto">
+          <div className="space-y-4">
+            {steps.map((step, index) => {
+              const Icon = step.icon;
+              return (
+                <ScrollReveal
+                  key={step.number}
+                  animation="fade-up"
+                  delay={index * 0.08}
+                >
+                  <div className="flex items-start gap-4 p-5 rounded-2xl bg-card border border-border/60 shadow-soft group hover:shadow-card transition-shadow duration-300">
+                    {/* Step Number & Icon */}
+                    <div className="flex-shrink-0 relative">
+                      <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center group-hover:scale-105 transition-transform duration-300">
+                        <Icon className="w-5 h-5 text-primary" strokeWidth={2} />
+                      </div>
+                      <div className="absolute -top-1.5 -right-1.5 w-6 h-6 rounded-full bg-primary text-primary-foreground flex items-center justify-center">
+                        <span className="text-[10px] font-bold">{step.number}</span>
+                      </div>
+                    </div>
+
+                    {/* Content */}
+                    <div className="flex-1 pt-0.5">
+                      <h3 className="font-bold text-foreground mb-1 text-[15px]">
+                        {step.title}
+                      </h3>
+                      <p className="text-sm text-muted-foreground leading-relaxed">
+                        {step.description}
+                      </p>
+                    </div>
+                  </div>
+                </ScrollReveal>
+              );
+            })}
+          </div>
         </div>
       </div>
     </section>

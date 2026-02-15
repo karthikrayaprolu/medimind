@@ -84,7 +84,7 @@ def send_push_notification(fcm_token: str, title: str, body: str, data: dict = N
                 priority="high",
                 notification=messaging.AndroidNotification(
                     icon="notification_icon",
-                    color="#667eea",
+                    color="#E8590C",
                     sound="default",
                     channel_id="medication_reminders"
                 )

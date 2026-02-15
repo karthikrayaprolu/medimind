@@ -1,9 +1,11 @@
 import { useState } from "react";
-import { Menu, X, Pill } from "lucide-react";
+import { Menu, X } from "lucide-react";
+import LogoIcon from "@/components/LogoIcon";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/hooks/use-auth";
 import { ThemeToggle } from "@/components/ThemeToggle";
+import { cn } from "@/lib/utils";
 
 const Navigation = () => {
   const [isOpen, setIsOpen] = useState(false);
@@ -28,34 +30,42 @@ const Navigation = () => {
   return (
     <>
       {/* Desktop Navigation */}
-      <nav className="fixed top-0 left-0 right-0 z-50 bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl border-b border-gray-200 dark:border-gray-800 hidden md:block">
-        <div className="container mx-auto px-4">
-          <div className="flex items-center justify-between h-16">
+      <nav className="fixed top-0 left-0 right-0 z-50 hidden md:block">
+        <div className="mx-auto max-w-7xl px-6 pt-4">
+          <div className="flex items-center justify-between rounded-2xl border border-border/60 bg-card/80 px-6 py-3 shadow-soft backdrop-blur-xl">
             {/* Logo */}
-            <div className="flex items-center gap-3 cursor-pointer" onClick={() => scrollToSection("home")}>
-              <div className="w-10 h-10 bg-primary rounded-xl flex items-center justify-center">
-                <Pill className="h-6 w-6 text-white" />
-              </div>
-              <span className="text-xl font-bold text-foreground">MediMind</span>
+            <div
+              className="flex items-center gap-2.5 cursor-pointer"
+              onClick={() => scrollToSection("home")}
+            >
+              <LogoIcon size={36} className="text-primary" />
+              <span className="text-lg font-bold tracking-tight text-foreground">
+                MediMind
+              </span>
             </div>
 
             {/* Menu Items */}
-            <div className="flex items-center gap-8">
+            <div className="flex items-center gap-1">
               {menuItems.map((item) => (
                 <button
                   key={item.id}
                   onClick={() => scrollToSection(item.id)}
-                  className="text-muted-foreground hover:text-foreground transition-colors font-medium text-sm"
+                  className="rounded-lg px-3.5 py-2 text-sm font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
                 >
                   {item.label}
                 </button>
               ))}
-              <div className="h-6 w-px bg-border" />
+            </div>
+
+            {/* Actions */}
+            <div className="flex items-center gap-2.5">
               <ThemeToggle />
               <Button
                 size="sm"
-                onClick={() => navigate(isAuthenticated ? "/dashboard" : "/auth")}
-                className="bg-primary hover:bg-primary/90 text-white rounded-xl px-5"
+                onClick={() =>
+                  navigate(isAuthenticated ? "/dashboard" : "/auth")
+                }
+                className="rounded-xl bg-primary px-5 font-semibold text-primary-foreground shadow-none hover:bg-primary/90"
               >
                 {isAuthenticated ? "Dashboard" : "Get Started"}
               </Button>
@@ -65,58 +75,66 @@ const Navigation = () => {
       </nav>
 
       {/* Mobile Navigation */}
-      <nav className="fixed top-0 left-0 right-0 z-50 bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl border-b border-gray-200 dark:border-gray-800 md:hidden">
-        <div className="px-4">
-          <div className="flex items-center justify-between h-16">
+      <nav className="fixed top-0 left-0 right-0 z-50 md:hidden">
+        <div className="border-b border-border/40 bg-card/85 backdrop-blur-xl safe-area-inset-top">
+          <div className="flex items-center justify-between px-4 py-3">
             {/* Logo */}
-            <div className="flex items-center gap-2 cursor-pointer" onClick={() => scrollToSection("home")}>
-              <div className="w-10 h-10 bg-primary rounded-xl flex items-center justify-center">
-                <Pill className="h-6 w-6 text-white" />
-              </div>
-              <span className="text-lg font-bold text-foreground">MediMind</span>
+            <div
+              className="flex items-center gap-2 cursor-pointer"
+              onClick={() => scrollToSection("home")}
+            >
+              <LogoIcon size={36} className="text-primary" />
+              <span className="text-lg font-bold tracking-tight text-foreground">
+                MediMind
+              </span>
             </div>
 
             {/* Mobile Menu Button */}
             <button
               onClick={() => setIsOpen(!isOpen)}
-              className="p-2 text-foreground hover:text-primary transition-colors"
+              className="flex h-10 w-10 items-center justify-center rounded-xl text-foreground transition-colors hover:bg-muted"
               aria-label="Toggle menu"
             >
-              {isOpen ? <X size={24} /> : <Menu size={24} />}
+              {isOpen ? <X size={22} /> : <Menu size={22} />}
             </button>
           </div>
         </div>
 
         {/* Mobile Menu Dropdown */}
-        {isOpen && (
-          <div className="border-t border-gray-200 dark:border-gray-800 bg-white dark:bg-slate-900">
-            <div className="px-4 py-4 space-y-1">
-              {menuItems.map((item) => (
-                <button
-                  key={item.id}
-                  onClick={() => scrollToSection(item.id)}
-                  className="block w-full text-left px-4 py-3 text-foreground hover:bg-gray-100 dark:hover:bg-gray-800 rounded-xl transition-colors font-medium"
-                >
-                  {item.label}
-                </button>
-              ))}
-              <div className="h-px bg-border my-3" />
-              <div className="flex items-center justify-between px-4 py-2">
-                <span className="text-sm font-medium text-muted-foreground">Theme</span>
-                <ThemeToggle />
-              </div>
-              <Button
-                className="w-full mt-3 rounded-xl bg-primary hover:bg-primary/90 text-white"
-                onClick={() => {
-                  setIsOpen(false);
-                  navigate(isAuthenticated ? "/dashboard" : "/auth");
-                }}
+        <div
+          className={cn(
+            "overflow-hidden border-b border-border/40 bg-card/95 backdrop-blur-xl transition-all duration-300 ease-out",
+            isOpen ? "max-h-[400px] opacity-100" : "max-h-0 opacity-0"
+          )}
+        >
+          <div className="px-4 pb-5 pt-2 space-y-1">
+            {menuItems.map((item) => (
+              <button
+                key={item.id}
+                onClick={() => scrollToSection(item.id)}
+                className="block w-full text-left rounded-xl px-4 py-3 text-[15px] font-medium text-foreground transition-colors hover:bg-muted"
               >
-                {isAuthenticated ? "Go to Dashboard" : "Get Started"}
-              </Button>
+                {item.label}
+              </button>
+            ))}
+            <div className="h-px bg-border/60 my-3" />
+            <div className="flex items-center justify-between px-4 py-2">
+              <span className="text-sm font-medium text-muted-foreground">
+                Theme
+              </span>
+              <ThemeToggle />
             </div>
+            <Button
+              className="w-full mt-3 rounded-xl bg-primary font-semibold text-primary-foreground shadow-none hover:bg-primary/90"
+              onClick={() => {
+                setIsOpen(false);
+                navigate(isAuthenticated ? "/dashboard" : "/auth");
+              }}
+            >
+              {isAuthenticated ? "Go to Dashboard" : "Get Started"}
+            </Button>
           </div>
-        )}
+        </div>
       </nav>
     </>
   );

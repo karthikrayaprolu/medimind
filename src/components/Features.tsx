@@ -1,72 +1,100 @@
-import { UploadCloud, Scan, ListChecks, BellRing } from "lucide-react";
+import { UploadCloud, Scan, ListChecks, BellRing, Brain, ShieldCheck } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import ScrollReveal from "@/components/ScrollReveal";
-import ParallaxSection from "@/components/ParallaxSection";
 
 const features = [
   {
     icon: UploadCloud,
-    title: "Seamless Prescription Intake",
-    description: "Authenticated uploads with optional compression keep every handwritten or printed prescription secure from the moment it hits the platform.",
+    title: "Seamless Upload",
+    description:
+      "Snap or upload any prescription — handwritten or printed. Secure, authenticated uploads with real-time validation.",
+    color: "bg-primary/10 text-primary",
   },
   {
     icon: Scan,
-    title: "Reliable OCR Extraction",
-    description: "An EasyOCR service cleans and interprets images to capture medicine names, strengths, and instructions with clinician-grade fidelity.",
+    title: "AI-Powered OCR",
+    description:
+      "Advanced OCR extracts medicine names, dosages, and instructions with clinician-grade accuracy from any format.",
+    color: "bg-blue-50 text-blue-600 dark:bg-blue-500/10 dark:text-blue-400",
   },
   {
-    icon: ListChecks,
-    title: "Structured Treatment Intelligence",
-    description: "Language understanding services transform unstructured notes into validated JSON ready for scheduling, backed by Pydantic safeguards.",
+    icon: Brain,
+    title: "Smart Analysis",
+    description:
+      "LLM services transform raw text into structured, validated medicine schedules you can trust and act on.",
+    color: "bg-violet-50 text-violet-600 dark:bg-violet-500/10 dark:text-violet-400",
   },
   {
     icon: BellRing,
-    title: "Automated Reminders & History",
-    description: "Dosage patterns become reminder timelines with notifications, audit trails, and searchable medication history stored in MongoDB.",
+    title: "Auto Reminders",
+    description:
+      "Never miss a dose. Automated push notifications and email alerts keep you on track, every time.",
+    color: "bg-secondary/10 text-secondary",
+  },
+  {
+    icon: ListChecks,
+    title: "Full History",
+    description:
+      "Every prescription, medication, and schedule — searchable and accessible in your personal health timeline.",
+    color: "bg-amber-50 text-amber-600 dark:bg-amber-500/10 dark:text-amber-400",
+  },
+  {
+    icon: ShieldCheck,
+    title: "HIPAA Secure",
+    description:
+      "End-to-end encryption, secure authentication, and compliant data storage protect your health information.",
+    color: "bg-emerald-50 text-emerald-600 dark:bg-emerald-500/10 dark:text-emerald-400",
   },
 ];
 
-const FeatureCard = ({ feature, index }: { feature: typeof features[0]; index: number }) => {
-  const Icon = feature.icon;
-
-  return (
-    <ScrollReveal animation="fade-up" delay={index * 0.1} className="h-full">
-      <Card className="p-6 h-full bg-card hover:shadow-lg transition-all duration-300 border border-border group hover:border-primary/50">
-        <div className="mb-4 w-12 h-12 bg-primary rounded-lg flex items-center justify-center group-hover:scale-110 transition-transform duration-300">
-          <Icon className="w-6 h-6 text-white" />
-        </div>
-        <h3 className="text-xl font-bold text-foreground mb-3">{feature.title}</h3>
-        <p className="text-muted-foreground leading-relaxed">{feature.description}</p>
-      </Card>
-    </ScrollReveal>
-  );
-};
-
 const Features = () => {
   return (
-    <section id="features" className="py-20 bg-background">
-      <div className="container mx-auto px-4 sm:px-6 lg:px-8">
+    <section id="features" className="py-20 md:py-24 bg-background">
+      <div className="container mx-auto px-4 sm:px-6">
         <ScrollReveal animation="fade-up" className="mx-auto">
-          <div className="text-center mb-16">
-            <h2 className="text-4xl md:text-5xl font-bold text-foreground mb-4">
-              Built for End-to-End Medication Clarity
+          <div className="text-center mb-14">
+            <div className="inline-flex items-center gap-2 mb-4 px-3.5 py-1.5 bg-primary/8 border border-primary/15 rounded-full">
+              <span className="text-primary font-semibold text-xs uppercase tracking-wider">
+                Features
+              </span>
+            </div>
+            <h2 className="text-3xl md:text-4xl font-extrabold text-foreground mb-4 tracking-tight">
+              Everything You Need for{" "}
+              <span className="text-primary">Medication Clarity</span>
             </h2>
-            <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
-              MediMind captures every step of the prescription lifecycle so patients and caregivers always know what to take, when to take it, and why.
+            <p className="text-lg text-muted-foreground max-w-xl mx-auto">
+              From upload to reminder — MediMind handles the entire prescription
+              lifecycle so you never miss what matters.
             </p>
           </div>
         </ScrollReveal>
 
-        <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
-          {features.map((feature, index) => (
-            <div key={index} className={index % 2 === 0 ? "mt-0" : "mt-0 md:mt-8 lg:mt-12"}>
-              {/* Add a slight offset to even/odd columns for a staggered look, 
-                   or use ParallaxSection for dynamic movement */}
-              <ParallaxSection speed={index % 2 === 0 ? 0 : 0.05}>
-                <FeatureCard feature={feature} index={index} />
-              </ParallaxSection>
-            </div>
-          ))}
+        <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4 max-w-5xl mx-auto">
+          {features.map((feature, index) => {
+            const Icon = feature.icon;
+            return (
+              <ScrollReveal
+                key={feature.title}
+                animation="fade-up"
+                delay={index * 0.08}
+                className="h-full"
+              >
+                <Card className="p-6 h-full bg-card border border-border/60 shadow-soft hover:shadow-card transition-all duration-300 group">
+                  <div
+                    className={`mb-4 w-11 h-11 rounded-xl flex items-center justify-center ${feature.color} transition-transform duration-300 group-hover:scale-105`}
+                  >
+                    <Icon className="w-5 h-5" strokeWidth={2} />
+                  </div>
+                  <h3 className="text-base font-bold text-foreground mb-2">
+                    {feature.title}
+                  </h3>
+                  <p className="text-sm text-muted-foreground leading-relaxed">
+                    {feature.description}
+                  </p>
+                </Card>
+              </ScrollReveal>
+            );
+          })}
         </div>
       </div>
     </section>

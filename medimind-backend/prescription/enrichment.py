@@ -32,6 +32,33 @@ except ImportError:
     print("[ENRICHMENT] Warning: tavily-python package not installed")
 
 
+def _truncate_ocr_text(raw_text: str, max_chars: int = 8000) -> str:
+    """
+    Intelligently truncate OCR text to fit within LLM token limits.
+    
+    Strategy:
+    - If text is within limit, return as-is
+    - Otherwise, take the first 5000 chars (patient info + main medicines)
+      and the last 3000 chars (may contain trailing prescriptions)
+    - This keeps the most medicine-relevant portions while dropping
+      OCR noise, headers, disclaimers, and repeated content
+    """
+    if len(raw_text) <= max_chars:
+        return raw_text
+    
+    head_size = int(max_chars * 0.6)  # 60% from start
+    tail_size = max_chars - head_size  # 40% from end
+    
+    truncated = (
+        raw_text[:head_size]
+        + "\n\n... [TEXT TRUNCATED — MIDDLE SECTION OMITTED FOR BREVITY] ...\n\n"
+        + raw_text[-tail_size:]
+    )
+    
+    print(f"[PARSE] Truncated OCR text from {len(raw_text)} to ~{max_chars} chars")
+    return truncated
+
+
 def parse_prescription_with_groq(raw_text: str) -> List[Dict]:
     """
     Use Groq LLM to intelligently parse prescription text and extract all medicines
@@ -47,11 +74,14 @@ def parse_prescription_with_groq(raw_text: str) -> List[Dict]:
         return []
     
     try:
+        # Truncate text if too long to avoid Groq 413 errors (token limit)
+        processed_text = _truncate_ocr_text(raw_text)
+        
         prompt = f"""You are an expert medical prescription parser. Analyze the following prescription text extracted via OCR and identify ALL medicines.
 
 RAW PRESCRIPTION TEXT:
 ```
-{raw_text}
+{processed_text}
 ```
 
 CRITICAL INSTRUCTIONS:

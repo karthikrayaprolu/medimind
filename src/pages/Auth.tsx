@@ -1,10 +1,10 @@
 import { FormEvent, useMemo, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
-import { LogIn, UserPlus, Mail, Lock, ArrowLeft, Pill } from "lucide-react";
+import { LogIn, UserPlus, Mail, Lock, ArrowLeft, User, Eye, EyeOff } from "lucide-react";
+import LogoIcon from "@/components/LogoIcon";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Card } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/use-auth";
 import { cn } from "@/lib/utils";
@@ -13,6 +13,7 @@ import { useAuthContext } from "@/contexts/AuthContext";
 const AuthPage = () => {
   const [mode, setMode] = useState<"login" | "signup">("login");
   const [isLoading, setIsLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
   const { login } = useAuth();
   const { registerPushNotifications } = useAuthContext();
   const { toast } = useToast();
@@ -81,7 +82,8 @@ const AuthPage = () => {
     } catch (error) {
       toast({
         title: mode === "login" ? "Login failed" : "Signup failed",
-        description: error instanceof Error ? error.message : "Please try again.",
+        description:
+          error instanceof Error ? error.message : "Please try again.",
         variant: "destructive",
       });
     } finally {
@@ -91,150 +93,197 @@ const AuthPage = () => {
 
   return (
     <div className="relative min-h-screen bg-background flex items-center justify-center px-4 py-8">
+      {/* Decorative blobs */}
+      <div className="absolute inset-0 overflow-hidden pointer-events-none">
+        <div className="absolute -top-32 -right-32 w-96 h-96 bg-primary/5 rounded-full blur-3xl" />
+        <div className="absolute -bottom-32 -left-32 w-[400px] h-[400px] bg-secondary/5 rounded-full blur-3xl" />
+      </div>
+
       {/* Back Button */}
-      <div className="absolute top-4 left-4">
-        <Button variant="ghost" onClick={() => navigate("/")}>
-          <ArrowLeft className="mr-2 h-4 w-4" />
+      <div className="absolute top-4 left-4 safe-area-inset-top">
+        <button
+          onClick={() => navigate("/")}
+          className="flex items-center gap-1.5 rounded-xl px-3 py-2 text-sm font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+        >
+          <ArrowLeft className="h-4 w-4" />
           Back
-        </Button>
+        </button>
       </div>
 
       {/* Auth Card */}
-      <Card className="w-full max-w-md bg-white dark:bg-slate-900 border-gray-200 dark:border-gray-800 shadow-xl">
-        <div className="p-6 sm:p-8">
-          {/* Header */}
-          <div className="mb-8 text-center">
-            <div className="mb-4 inline-flex h-16 w-16 items-center justify-center rounded-2xl bg-primary">
-              <Pill className="h-8 w-8 text-white" />
+      <div className="relative z-10 w-full max-w-md">
+        <div className="rounded-2xl border border-border/60 bg-card shadow-card overflow-hidden">
+          <div className="p-6 sm:p-8">
+            {/* Header */}
+            <div className="mb-8 text-center">
+              <div className="mb-4 inline-block">
+                <LogoIcon size={48} className="text-primary" />
+              </div>
+              <h1 className="text-2xl font-extrabold text-foreground tracking-tight">
+                {mode === "login" ? "Welcome Back" : "Create Account"}
+              </h1>
+              <p className="mt-1.5 text-sm text-muted-foreground">
+                {mode === "login"
+                  ? "Sign in to continue to MediMind"
+                  : "Start your health journey with MediMind"}
+              </p>
             </div>
-            <h1 className="text-2xl font-bold text-foreground">Welcome to MediMind</h1>
-            <p className="mt-2 text-sm text-muted-foreground">
-              {mode === "login" ? "Sign in to your account" : "Create your account"}
-            </p>
-          </div>
 
-          {/* Tab Switcher */}
-          <div className="mb-6 flex rounded-xl bg-muted p-1">
-            <button
-              type="button"
-              onClick={() => setMode("login")}
-              className={cn(
-                "flex-1 rounded-lg px-4 py-2.5 text-sm font-semibold transition-all",
-                mode === "login"
-                  ? "bg-white dark:bg-slate-800 text-foreground shadow-sm"
-                  : "text-muted-foreground hover:text-foreground"
-              )}
-            >
-              <LogIn className="mr-2 inline h-4 w-4" />
-              Login
-            </button>
-            <button
-              type="button"
-              onClick={() => setMode("signup")}
-              className={cn(
-                "flex-1 rounded-lg px-4 py-2.5 text-sm font-semibold transition-all",
-                mode === "signup"
-                  ? "bg-white dark:bg-slate-800 text-foreground shadow-sm"
-                  : "text-muted-foreground hover:text-foreground"
-              )}
-            >
-              <UserPlus className="mr-2 inline h-4 w-4" />
-              Sign Up
-            </button>
-          </div>
+            {/* Tab Switcher */}
+            <div className="mb-6 flex rounded-xl bg-muted p-1">
+              <button
+                type="button"
+                onClick={() => setMode("login")}
+                className={cn(
+                  "flex-1 flex items-center justify-center gap-1.5 rounded-lg px-4 py-2.5 text-sm font-semibold transition-all",
+                  mode === "login"
+                    ? "bg-card text-foreground shadow-soft"
+                    : "text-muted-foreground hover:text-foreground"
+                )}
+              >
+                <LogIn className="h-4 w-4" />
+                Login
+              </button>
+              <button
+                type="button"
+                onClick={() => setMode("signup")}
+                className={cn(
+                  "flex-1 flex items-center justify-center gap-1.5 rounded-lg px-4 py-2.5 text-sm font-semibold transition-all",
+                  mode === "signup"
+                    ? "bg-card text-foreground shadow-soft"
+                    : "text-muted-foreground hover:text-foreground"
+                )}
+              >
+                <UserPlus className="h-4 w-4" />
+                Sign Up
+              </button>
+            </div>
 
-          {/* Form */}
-          <form onSubmit={handleSubmit} className="space-y-4">
-            {mode === "signup" && (
+            {/* Form */}
+            <form onSubmit={handleSubmit} className="space-y-4">
+              {mode === "signup" && (
+                <div className="space-y-2">
+                  <Label htmlFor="fullName" className="text-sm font-medium">
+                    Full Name
+                  </Label>
+                  <div className="relative">
+                    <User className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                    <Input
+                      id="fullName"
+                      name="fullName"
+                      placeholder="John Doe"
+                      autoComplete="name"
+                      className="pl-10 h-11 rounded-xl border-border/80 bg-background"
+                    />
+                  </div>
+                </div>
+              )}
+
               <div className="space-y-2">
-                <Label htmlFor="fullName">Full Name</Label>
+                <Label htmlFor="email" className="text-sm font-medium">
+                  Email
+                </Label>
                 <div className="relative">
+                  <Mail className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                   <Input
-                    id="fullName"
-                    name="fullName"
-                    placeholder="John Doe"
-                    autoComplete="name"
-                    className="pl-3 pr-10"
+                    id="email"
+                    name="email"
+                    type="email"
+                    placeholder="you@example.com"
+                    autoComplete="email"
+                    className="pl-10 h-11 rounded-xl border-border/80 bg-background"
                   />
                 </div>
               </div>
-            )}
 
-            <div className="space-y-2">
-              <Label htmlFor="email">Email</Label>
-              <div className="relative">
-                <Input
-                  id="email"
-                  name="email"
-                  type="email"
-                  placeholder="you@example.com"
-                  autoComplete="email"
-                  className="pl-3 pr-10"
-                />
-                <Mail className="absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-              </div>
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="password">Password</Label>
-              <div className="relative">
-                <Input
-                  id="password"
-                  name="password"
-                  type="password"
-                  placeholder="••••••••"
-                  autoComplete={mode === "login" ? "current-password" : "new-password"}
-                  className="pl-3 pr-10"
-                />
-                <Lock className="absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-              </div>
-            </div>
-
-            {mode === "signup" && (
               <div className="space-y-2">
-                <Label htmlFor="confirmPassword">Confirm Password</Label>
+                <Label htmlFor="password" className="text-sm font-medium">
+                  Password
+                </Label>
                 <div className="relative">
+                  <Lock className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                   <Input
-                    id="confirmPassword"
-                    name="confirmPassword"
-                    type="password"
+                    id="password"
+                    name="password"
+                    type={showPassword ? "text" : "password"}
                     placeholder="••••••••"
-                    autoComplete="new-password"
-                    className="pl-3 pr-10"
+                    autoComplete={
+                      mode === "login" ? "current-password" : "new-password"
+                    }
+                    className="pl-10 pr-10 h-11 rounded-xl border-border/80 bg-background"
                   />
-                  <Lock className="absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                  >
+                    {showPassword ? (
+                      <EyeOff className="h-4 w-4" />
+                    ) : (
+                      <Eye className="h-4 w-4" />
+                    )}
+                  </button>
                 </div>
               </div>
-            )}
 
-            <Button
-              type="submit"
-              className="w-full bg-primary hover:bg-primary/90 mt-6"
-              disabled={isLoading}
-            >
-              {isLoading ? "Please wait..." : mode === "login" ? "Sign In" : "Create Account"}
-            </Button>
+              {mode === "signup" && (
+                <div className="space-y-2">
+                  <Label
+                    htmlFor="confirmPassword"
+                    className="text-sm font-medium"
+                  >
+                    Confirm Password
+                  </Label>
+                  <div className="relative">
+                    <Lock className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                    <Input
+                      id="confirmPassword"
+                      name="confirmPassword"
+                      type={showPassword ? "text" : "password"}
+                      placeholder="••••••••"
+                      autoComplete="new-password"
+                      className="pl-10 h-11 rounded-xl border-border/80 bg-background"
+                    />
+                  </div>
+                </div>
+              )}
 
-            <p className="mt-4 text-center text-xs text-muted-foreground">
-              By continuing, you agree to our Terms and Privacy Policy
-            </p>
-          </form>
-        </div>
+              <Button
+                type="submit"
+                className="w-full bg-primary hover:bg-primary/90 text-primary-foreground mt-6 h-11 rounded-xl font-semibold shadow-none"
+                disabled={isLoading}
+              >
+                {isLoading
+                  ? "Please wait..."
+                  : mode === "login"
+                    ? "Sign In"
+                    : "Create Account"}
+              </Button>
 
-        {/* Footer Info */}
-        <div className="border-t border-gray-200 dark:border-gray-800 bg-muted/30 px-6 py-4">
-          <div className="space-y-2 text-xs text-muted-foreground">
-            <div className="flex items-center gap-2">
-              <div className="h-1.5 w-1.5 rounded-full bg-secondary" />
-              <span>Secure encrypted authentication</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <div className="h-1.5 w-1.5 rounded-full bg-secondary" />
-              <span>HIPAA compliant data storage</span>
+              <p className="mt-4 text-center text-xs text-muted-foreground">
+                By continuing, you agree to our{" "}
+                <a href="#" className="text-primary hover:underline">Terms</a>{" "}
+                and{" "}
+                <a href="#" className="text-primary hover:underline">Privacy Policy</a>
+              </p>
+            </form>
+          </div>
+
+          {/* Footer Info */}
+          <div className="border-t border-border/60 bg-muted/30 px-6 py-4">
+            <div className="flex flex-wrap gap-4 text-xs text-muted-foreground justify-center">
+              <div className="flex items-center gap-1.5">
+                <div className="h-1.5 w-1.5 rounded-full bg-primary" />
+                <span>Secure encrypted authentication</span>
+              </div>
+              <div className="flex items-center gap-1.5">
+                <div className="h-1.5 w-1.5 rounded-full bg-primary" />
+                <span>HIPAA compliant data storage</span>
+              </div>
             </div>
           </div>
         </div>
-      </Card>
+      </div>
     </div>
   );
 };
