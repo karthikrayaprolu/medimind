@@ -41,3 +41,10 @@ android/local.properties
 *.njsproj
 *.sln
 *.sw?
+
+# Temp files
+*_archive.zip
+temp_*.jpg
+temp_*.png
+temp_*.jpeg
+sarvam_output_*.zip
