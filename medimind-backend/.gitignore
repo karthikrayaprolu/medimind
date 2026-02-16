@@ -22,6 +22,3 @@ temp/
 *.jpg
 *.png
 *.jpeg
-*_archive.zip
-sarvam_output_*.zip
-sarvam_extracted_*/
