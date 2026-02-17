@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useMemo, useCallback } from "react";
 import {
   UploadCloud,
   FileText,
@@ -86,6 +86,8 @@ const Dashboard = () => {
   const [isSavingEdit, setIsSavingEdit] = useState(false);
   const [showProfileMenu, setShowProfileMenu] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
+  const [isClearingHistory, setIsClearingHistory] = useState(false);
+  const [showClearHistoryConfirm, setShowClearHistoryConfirm] = useState(false);
 
   // ── Profile State ──
   const [userName, setUserName] = useState(() => {
@@ -104,6 +106,11 @@ const Dashboard = () => {
     try { return localStorage.getItem("medimind-reminder-sound") !== "false"; } catch { return true; }
   });
 
+  // Scroll to top when changing tabs to prevent bottom nav from being scrolled out of view
+  useEffect(() => {
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }, [activeTab]);
+
   // Persist profile settings
   useEffect(() => {
     try {
@@ -114,31 +121,37 @@ const Dashboard = () => {
     } catch { }
   }, [userName, userAvatar, notificationsEnabled, reminderSound]);
 
-  // Avatar options
-  const avatarOptionsMen = avatarIds.filter(id => id.startsWith("m"));
-  const avatarOptionsWomen = avatarIds.filter(id => id.startsWith("w"));
+  // Avatar options - memoized to prevent recalculation
+  const avatarOptionsMen = useMemo(() => avatarIds.filter(id => id.startsWith("m")), []);
+  const avatarOptionsWomen = useMemo(() => avatarIds.filter(id => id.startsWith("w")), []);
 
+  // Load data on mount
   useEffect(() => {
     if (token) {
       loadData();
     }
   }, [token]);
 
-  const loadData = async () => {
+  const loadData = useCallback(async () => {
     try {
       setIsLoading(true);
       const [schedulesData, prescriptionsData] = await Promise.all([
         prescriptionApi.getUserSchedules(token!),
         prescriptionApi.getUserPrescriptions(token!),
       ]);
-      setSchedules(schedulesData);
-      setPrescriptions(prescriptionsData);
+      // Sort by created_at descending (latest first)
+      setSchedules(schedulesData.sort((a, b) => 
+        new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+      ));
+      setPrescriptions(prescriptionsData.sort((a, b) => 
+        new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+      ));
     } catch (error) {
       console.error("Failed to load data:", error);
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [token]);
 
   const handleLogout = async () => {
     try {
@@ -304,7 +317,45 @@ const Dashboard = () => {
     }));
   };
 
-  const getTimingDetails = (timing: string) => {
+  const handleClearHistory = async () => {
+    if (!token) return;
+    
+    setIsClearingHistory(true);
+    try {
+      await prescriptionApi.clearHistory(token);
+      
+      // Refresh data
+      await loadData();
+      
+      setShowClearHistoryConfirm(false);
+      toast({
+        title: "History cleared",
+        description: "All prescriptions and schedules have been removed.",
+      });
+    } catch (error) {
+      toast({
+        title: "Clear failed",
+        description:
+          error instanceof Error ? error.message : "Failed to clear history",
+        variant: "destructive",
+      });
+    } finally {
+      setIsClearingHistory(false);
+    }
+  };
+
+  // Memoized filtered lists to prevent recalculation
+  const activeSchedules = useMemo(() => 
+    schedules.filter((s) => s.enabled), 
+    [schedules]
+  );
+
+  const recentPrescriptions = useMemo(() => 
+    prescriptions.slice(0, 3), 
+    [prescriptions]
+  );
+
+  const getTimingDetails = useCallback((timing: string) => {
     const map: Record<
       string,
       { icon: typeof Sun; color: string; bg: string }
@@ -337,22 +388,22 @@ const Dashboard = () => {
         bg: "bg-muted",
       }
     );
-  };
+  }, []);
 
-  const getGreeting = () => {
+  const greeting = useMemo(() => {
     const hour = new Date().getHours();
     if (hour < 12) return "Good Morning";
     if (hour < 17) return "Good Afternoon";
     return "Good Evening";
-  };
+  }, []); // Empty deps - will be constant for the session
 
   /* ────────────────────────────── HOME TAB ────────────────────────────── */
   const renderHomeTab = () => (
-    <div className="space-y-5 pb-24">
+    <div className="space-y-5 pb-28">
       {/* Greeting */}
       <div className="mb-2">
         <h2 className="text-2xl font-extrabold text-foreground tracking-tight">
-          {getGreeting()}{userName ? `, ${userName.includes(" ") ? userName.split(" ")[0] : userName}` : ""} 👋
+          {greeting}{userName ? `, ${userName.includes(" ") ? userName.split(" ")[0] : userName}` : ""} 👋
         </h2>
         <p className="text-sm text-muted-foreground mt-0.5">
           Here's your health overview
@@ -395,7 +446,7 @@ const Dashboard = () => {
               <BellRing className="h-4.5 w-4.5 text-amber-600 dark:text-amber-400" strokeWidth={2} />
             </div>
             <p className="text-xl font-extrabold text-foreground">
-              {schedules.filter((s) => s.enabled).length}
+              {activeSchedules.length}
             </p>
             <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider mt-0.5">
               Active
@@ -436,8 +487,8 @@ const Dashboard = () => {
         </div>
       </Card>
 
-      {/* Upcoming Medications */}
-      {schedules.filter((s) => s.enabled).length > 0 && (
+      {/* Active Medications */}
+      {activeSchedules.length > 0 && (
         <div>
           <div className="flex items-center justify-between mb-3">
             <h3 className="font-bold text-foreground text-[15px]">
@@ -475,8 +526,8 @@ const Dashboard = () => {
                         {schedule.dosage} · {schedule.frequency}
                       </p>
                     </div>
-                    <div className="flex gap-1 flex-shrink-0">
-                      {schedule.timings.slice(0, 2).map((timing) => {
+                    <div className="flex gap-1 flex-shrink-0 flex-wrap max-w-[90px] justify-end">
+                      {schedule.timings.map((timing) => {
                         const details = getTimingDetails(timing);
                         const TimingIcon = details.icon;
                         return (
@@ -510,7 +561,7 @@ const Dashboard = () => {
           </h3>
           {prescriptions.length > 3 && (
             <button
-              onClick={() => setActiveTab("insights")}
+              onClick={() => setActiveTab("history")}
               className="text-xs font-semibold text-primary flex items-center gap-0.5"
             >
               View All
@@ -529,36 +580,68 @@ const Dashboard = () => {
           </Card>
         ) : (
           <div className="space-y-2.5">
-            {prescriptions.slice(0, 3).map((prescription) => (
-              <Card
-                key={prescription._id}
-                className="p-4 bg-card border border-border/60 shadow-soft"
-              >
-                <div className="flex items-center gap-3.5">
-                  <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl bg-primary/10">
-                    <FileText className="h-5 w-5 text-primary" strokeWidth={2} />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-semibold text-foreground">
-                      Prescription uploaded
-                    </p>
-                    <p className="text-xs text-muted-foreground">
-                      {new Date(prescription.created_at).toLocaleDateString(
-                        "en-US",
-                        {
-                          month: "short",
-                          day: "numeric",
-                          year: "numeric",
-                        }
+            {prescriptions.slice(0, 3).map((prescription) => {
+              // Parse medicines from prescription
+              let medicines: any[] = [];
+              try {
+                medicines = JSON.parse(prescription.structured_data);
+              } catch (e) {
+                medicines = [];
+              }
+
+              return (
+                <Card
+                  key={prescription._id}
+                  className="p-4 bg-card border border-border/60 shadow-soft"
+                >
+                  <div className="flex items-start gap-3.5">
+                    <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl bg-primary/10">
+                      <FileText className="h-5 w-5 text-primary" strokeWidth={2} />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center justify-between mb-1">
+                        <p className="text-sm font-semibold text-foreground">
+                          Prescription uploaded
+                        </p>
+                        <p className="text-xs text-muted-foreground">
+                          {new Date(prescription.created_at).toLocaleDateString(
+                            "en-US",
+                            {
+                              month: "short",
+                              day: "numeric",
+                            }
+                          )}
+                        </p>
+                      </div>
+                      
+                      {/* Show medicines */}
+                      {medicines.length > 0 ? (
+                        <div className="flex flex-wrap gap-1.5 mt-1.5">
+                          {medicines.slice(0, 3).map((med: any, idx: number) => (
+                            <span
+                              key={idx}
+                              className="inline-flex items-center gap-1 text-xs font-medium text-primary bg-primary/10 px-2 py-0.5 rounded-lg"
+                            >
+                              <Pill className="h-3 w-3" strokeWidth={2} />
+                              {med.medicine_name || "Unknown"}
+                            </span>
+                          ))}
+                          {medicines.length > 3 && (
+                            <span className="text-xs text-muted-foreground px-1 py-0.5">
+                              +{medicines.length - 3} more
+                            </span>
+                          )}
+                        </div>
+                      ) : (
+                        <p className="text-xs text-muted-foreground mt-1">
+                          No medicines detected
+                        </p>
                       )}
-                    </p>
+                    </div>
                   </div>
-                  <div className="flex-shrink-0">
-                    <div className="w-2 h-2 rounded-full bg-primary" />
-                  </div>
-                </div>
-              </Card>
-            ))}
+                </Card>
+              );
+            })}
           </div>
         )}
       </div>
@@ -573,7 +656,7 @@ const Dashboard = () => {
           Medication Reminders
         </h2>
         <p className="text-sm text-muted-foreground mt-0.5">
-          {schedules.filter((s) => s.enabled).length} active ·{" "}
+          {activeSchedules.length} active ·{" "}
           {schedules.length} total
         </p>
       </div>
@@ -707,47 +790,11 @@ const Dashboard = () => {
   );
 
   /* ──────────────────────────── INSIGHTS TAB ──────────────────────────── */
-  const getAdherenceScore = () => {
+  const getAdherenceScore = useCallback(() => {
     if (schedules.length === 0) return 0;
-    const enabled = schedules.filter((s) => s.enabled).length;
+    const enabled = activeSchedules.length;
     return Math.round((enabled / schedules.length) * 100);
-  };
-
-  const getWeekDays = () => {
-    const days = [];
-    const today = new Date();
-    const totalMeds = schedules.length;
-    const enabledMeds = schedules.filter((s) => s.enabled).length;
-
-    for (let i = 6; i >= 0; i--) {
-      const d = new Date(today);
-      d.setDate(today.getDate() - i);
-      const dateNum = d.getDate();
-
-      if (i === 0) {
-        // Today: show actual enabled count
-        days.push({
-          name: d.toLocaleDateString("en-US", { weekday: "short" }).charAt(0),
-          date: dateNum,
-          isToday: true,
-          dosesCompleted: enabledMeds,
-          totalDoses: totalMeds,
-        });
-      } else {
-        // Past days: deterministic value based on date (no random)
-        const seed = (dateNum * 7 + i * 3) % (totalMeds + 1);
-        const completed = totalMeds > 0 ? Math.min(seed, totalMeds) : 0;
-        days.push({
-          name: d.toLocaleDateString("en-US", { weekday: "short" }).charAt(0),
-          date: dateNum,
-          isToday: false,
-          dosesCompleted: completed,
-          totalDoses: totalMeds,
-        });
-      }
-    }
-    return days;
-  };
+  }, [schedules.length, activeSchedules.length]);
 
   const getNextTiming = (timings: string[]) => {
     const hour = new Date().getHours();
@@ -775,7 +822,6 @@ const Dashboard = () => {
 
   const renderInsightsTab = () => {
     const adherence = getAdherenceScore();
-    const weekDays = getWeekDays();
 
     return (
       <div className="space-y-5 pb-24">
@@ -844,55 +890,10 @@ const Dashboard = () => {
                   <div className="flex items-center gap-1.5 mt-2">
                     <CheckCircle2 className="h-3.5 w-3.5 text-primary" />
                     <span className="text-[11px] font-semibold text-primary">
-                      {schedules.filter((s) => s.enabled).length} of {schedules.length} active
+                      {activeSchedules.length} of {schedules.length} active
                     </span>
                   </div>
                 </div>
-              </div>
-            </Card>
-
-            {/* Weekly Overview */}
-            <Card className="p-5 bg-card border border-border/60 shadow-soft">
-              <h3 className="font-bold text-foreground mb-4 text-[15px]">This Week</h3>
-              <div className="flex justify-between">
-                {weekDays.map((day, i) => (
-                  <div key={i} className="flex flex-col items-center gap-1.5">
-                    <span className={cn(
-                      "text-[10px] font-semibold uppercase",
-                      day.isToday ? "text-primary" : "text-muted-foreground"
-                    )}>
-                      {day.name}
-                    </span>
-                    <div
-                      className={cn(
-                        "w-9 h-9 rounded-xl flex items-center justify-center text-xs font-bold transition-all",
-                        day.isToday
-                          ? "bg-primary text-primary-foreground"
-                          : day.dosesCompleted === day.totalDoses && day.totalDoses > 0
-                            ? "bg-primary/10 text-primary"
-                            : "bg-muted text-muted-foreground"
-                      )}
-                    >
-                      {day.date}
-                    </div>
-                    {/* Dot indicator */}
-                    <div className="flex gap-0.5">
-                      {day.totalDoses > 0 ? (
-                        Array.from({ length: Math.min(day.totalDoses, 3) }).map((_, j) => (
-                          <div
-                            key={j}
-                            className={cn(
-                              "w-1.5 h-1.5 rounded-full",
-                              j < day.dosesCompleted ? "bg-primary" : "bg-muted-foreground/30"
-                            )}
-                          />
-                        ))
-                      ) : (
-                        <div className="w-1.5 h-1.5" />
-                      )}
-                    </div>
-                  </div>
-                ))}
               </div>
             </Card>
 
@@ -1146,40 +1147,17 @@ const Dashboard = () => {
         <div className="px-5 pt-4 pb-1.5">
           <h3 className="font-bold text-foreground text-sm flex items-center gap-2">
             <Shield className="h-4 w-4 text-primary" strokeWidth={2} />
-            Privacy & Data
+            Privacy & Security
           </h3>
         </div>
-        <div className="divide-y divide-border/40">
-          <div className="flex items-center justify-between px-5 py-3.5">
+        <div className="px-5 py-3.5">
+          <div className="flex items-start gap-3 p-3 rounded-xl bg-primary/5">
+            <CheckCircle2 className="h-4 w-4 text-primary flex-shrink-0 mt-0.5" />
             <div>
-              <span className="text-sm font-medium text-foreground block">Encryption</span>
-              <span className="text-[11px] text-muted-foreground">All data is encrypted in transit & at rest</span>
-            </div>
-            <div className="flex items-center gap-1 text-[11px] font-semibold text-primary bg-primary/8 px-2.5 py-1 rounded-lg">
-              <CheckCircle2 className="h-3 w-3" />
-              Active
-            </div>
-          </div>
-          <div className="flex items-center justify-between px-5 py-3.5">
-            <div>
-              <span className="text-sm font-medium text-foreground block">Your Data</span>
-              <span className="text-[11px] text-muted-foreground">
-                {prescriptions.length} prescription{prescriptions.length !== 1 ? "s" : ""}, {schedules.length} medication{schedules.length !== 1 ? "s" : ""} stored
-              </span>
-            </div>
-            <div className="flex items-center gap-1 text-[11px] font-semibold text-primary bg-primary/8 px-2.5 py-1 rounded-lg">
-              <Shield className="h-3 w-3" />
-              Secure
-            </div>
-          </div>
-          <div className="flex items-center justify-between px-5 py-3.5">
-            <div>
-              <span className="text-sm font-medium text-foreground block">Session</span>
-              <span className="text-[11px] text-muted-foreground">JWT-backed authenticated session</span>
-            </div>
-            <div className="flex items-center gap-1 text-[11px] font-semibold text-primary bg-primary/8 px-2.5 py-1 rounded-lg">
-              <CheckCircle2 className="h-3 w-3" />
-              Verified
+              <p className="text-sm font-medium text-foreground">Your data is protected</p>
+              <p className="text-xs text-muted-foreground mt-1">
+                All data is encrypted in transit and at rest. Your {prescriptions.length} prescription{prescriptions.length !== 1 ? 's' : ''} and {schedules.length} medication schedule{schedules.length !== 1 ? 's' : ''} are stored securely.
+              </p>
             </div>
           </div>
         </div>
@@ -1199,10 +1177,10 @@ const Dashboard = () => {
       {showAvatarPicker && (
         <div className="fixed inset-0 z-50 flex items-center justify-center px-4">
           <div
-            className="absolute inset-0 bg-black/50 backdrop-blur-sm"
+            className="absolute inset-0 bg-black/60 backdrop-blur-md"
             onClick={() => setShowAvatarPicker(false)}
           />
-          <div className="relative w-full max-w-sm bg-card border border-border rounded-2xl p-6 animate-in fade-in zoom-in-95 duration-200 max-h-[85vh] overflow-y-auto">
+          <div className="relative w-full max-w-sm bg-white dark:bg-card border border-border/80 rounded-2xl p-6 shadow-2xl animate-in fade-in zoom-in-95 duration-200 max-h-[85vh] overflow-y-auto">
             {/* Handle bar for visual cue */}
             <div className="w-10 h-1 rounded-full bg-border mx-auto mb-4" />
 
@@ -1272,13 +1250,26 @@ const Dashboard = () => {
   /* ──────────────────────────── HISTORY TAB ──────────────────────────── */
   const renderHistoryTab = () => (
     <div className="space-y-5 pb-28">
-      <div>
-        <h2 className="text-2xl font-extrabold text-foreground tracking-tight">
-          Prescription History
-        </h2>
-        <p className="text-sm text-muted-foreground mt-0.5">
-          {prescriptions.length} prescription{prescriptions.length !== 1 ? 's' : ''} uploaded
-        </p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h2 className="text-2xl font-extrabold text-foreground tracking-tight">
+            Prescription History
+          </h2>
+          <p className="text-sm text-muted-foreground mt-0.5">
+            {prescriptions.length} prescription{prescriptions.length !== 1 ? 's' : ''} uploaded
+          </p>
+        </div>
+        {prescriptions.length > 0 && (
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setShowClearHistoryConfirm(true)}
+            className="text-destructive hover:text-destructive hover:bg-destructive/10 border-destructive/30 rounded-xl shadow-none"
+          >
+            <Trash2 className="h-4 w-4 mr-1.5" />
+            Clear
+          </Button>
+        )}
       </div>
 
       {isLoading ? (
@@ -1317,7 +1308,12 @@ const Dashboard = () => {
               grouped[monthYear].push(p);
             });
 
-            return Object.entries(grouped).map(([month, items]) => (
+            // Sort month groups by the first item's date (descending)
+            const sortedGroups = Object.entries(grouped).sort(([, itemsA], [, itemsB]) => 
+              new Date(itemsB[0].created_at).getTime() - new Date(itemsA[0].created_at).getTime()
+            );
+
+            return sortedGroups.map(([month, items]) => (
               <div key={month}>
                 <div className="flex items-center gap-2 mb-2.5">
                   <span className="text-xs font-bold text-muted-foreground uppercase tracking-wider">
@@ -1329,38 +1325,71 @@ const Dashboard = () => {
                   </span>
                 </div>
                 <div className="space-y-2">
-                  {items.map((prescription, index) => (
-                    <Card
-                      key={prescription._id}
-                      className="p-4 bg-card border border-border/60 shadow-soft hover:border-primary/20 transition-colors"
-                    >
-                      <div className="flex items-center gap-3.5">
-                        <div className="flex-shrink-0 w-11 h-11 rounded-xl bg-gradient-to-br from-primary/15 to-primary/5 flex items-center justify-center">
-                          <FileText className="h-5 w-5 text-primary" strokeWidth={1.8} />
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <p className="text-sm font-semibold text-foreground">
-                            Prescription #{prescriptions.length - prescriptions.indexOf(prescription)}
-                          </p>
-                          <p className="text-xs text-muted-foreground mt-0.5">
-                            {new Date(prescription.created_at).toLocaleDateString("en-US", {
-                              weekday: "short",
-                              month: "short",
-                              day: "numeric",
-                              hour: "numeric",
-                              minute: "2-digit",
-                            })}
-                          </p>
-                        </div>
-                        <div className="flex-shrink-0">
-                          <div className="flex items-center gap-1 text-xs font-medium text-primary bg-primary/8 px-2.5 py-1 rounded-lg">
-                            <CheckCircle2 className="h-3 w-3" />
-                            Processed
+                  {items.map((prescription) => {
+                    // Parse medicines from prescription
+                    let medicines: any[] = [];
+                    try {
+                      medicines = JSON.parse(prescription.structured_data);
+                    } catch (e) {
+                      medicines = [];
+                    }
+
+                    return (
+                      <Card
+                        key={prescription._id}
+                        className="p-4 bg-card border border-border/60 shadow-soft hover:border-primary/20 transition-colors"
+                      >
+                        <div className="flex items-start gap-3.5">
+                          <div className="flex-shrink-0 w-11 h-11 rounded-xl bg-gradient-to-br from-primary/15 to-primary/5 flex items-center justify-center">
+                            <FileText className="h-5 w-5 text-primary" strokeWidth={1.8} />
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center justify-between mb-1">
+                              <p className="text-sm font-semibold text-foreground">
+                                {new Date(prescription.created_at).toLocaleDateString("en-US", {
+                                  weekday: "short",
+                                  month: "short",
+                                  day: "numeric",
+                                  hour: "numeric",
+                                  minute: "2-digit",
+                                })}
+                              </p>
+                              <div className="flex items-center gap-1 text-[10px] font-medium text-primary bg-primary/8 px-2 py-0.5 rounded-lg">
+                                <CheckCircle2 className="h-2.5 w-2.5" />
+                                Processed
+                              </div>
+                            </div>
+                            
+                            {/* Medicine preview */}
+                            {medicines.length > 0 ? (
+                              <div className="mt-2 space-y-1.5">
+                                {medicines.slice(0, 2).map((med: any, idx: number) => (
+                                  <div key={idx} className="flex items-center gap-2 text-xs">
+                                    <Pill className="h-3 w-3 text-primary flex-shrink-0" strokeWidth={2} />
+                                    <span className="font-medium text-foreground truncate">
+                                      {med.medicine_name || "Unknown"}
+                                    </span>
+                                    <span className="text-muted-foreground truncate">
+                                      {med.dosage || "N/A"}
+                                    </span>
+                                  </div>
+                                ))}
+                                {medicines.length > 2 && (
+                                  <p className="text-[10px] text-muted-foreground pl-5">
+                                    +{medicines.length - 2} more medication{medicines.length - 2 !== 1 ? 's' : ''}
+                                  </p>
+                                )}
+                              </div>
+                            ) : (
+                              <p className="text-xs text-muted-foreground mt-1">
+                                No medicines extracted
+                              </p>
+                            )}
                           </div>
                         </div>
-                      </div>
-                    </Card>
-                  ))}
+                      </Card>
+                    );
+                  })}
                 </div>
               </div>
             ));
@@ -1394,10 +1423,10 @@ const Dashboard = () => {
       {showUploadOptions && (
         <div className="fixed inset-0 z-50 flex items-center justify-center px-4">
           <div
-            className="absolute inset-0 bg-black/50 backdrop-blur-sm"
+            className="absolute inset-0 bg-black/60 backdrop-blur-md"
             onClick={() => setShowUploadOptions(false)}
           />
-          <div className="relative w-full max-w-xs bg-card border border-border rounded-2xl p-5 animate-in fade-in zoom-in-95 duration-200">
+          <div className="relative w-full max-w-xs bg-white dark:bg-card border border-border/80 rounded-2xl p-5 shadow-2xl animate-in fade-in zoom-in-95 duration-200">
             <div className="w-10 h-1 rounded-full bg-border mx-auto mb-4" />
             <h3 className="text-base font-extrabold text-foreground tracking-tight text-center mb-1">
               Scan Prescription
@@ -1483,9 +1512,6 @@ const Dashboard = () => {
                 aria-label="Notifications"
               >
                 <Bell className="h-[20px] w-[20px]" strokeWidth={1.8} />
-                {schedules.filter((s) => s.enabled).length > 0 && (
-                  <span className="absolute top-2 right-2 w-2 h-2 rounded-full bg-primary ring-2 ring-card" />
-                )}
               </button>
 
               {/* Notifications Dropdown */}
@@ -1730,12 +1756,12 @@ const Dashboard = () => {
         <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center">
           {/* Backdrop */}
           <div
-            className="absolute inset-0 bg-black/50 backdrop-blur-sm"
+            className="absolute inset-0 bg-black/60 backdrop-blur-md"
             onClick={() => setEditingSchedule(null)}
           />
 
           {/* Modal */}
-          <div className="relative w-full max-w-md bg-card border border-border rounded-t-3xl sm:rounded-2xl p-6 sm:mx-4 max-h-[90vh] overflow-y-auto animate-in slide-in-from-bottom duration-300">
+          <div className="relative w-full max-w-md bg-white dark:bg-card border border-border/80 rounded-t-3xl sm:rounded-2xl p-6 sm:mx-4 max-h-[90vh] overflow-y-auto shadow-2xl animate-in slide-in-from-bottom duration-300">
             {/* Header */}
             <div className="flex items-center justify-between mb-6">
               <h3 className="text-lg font-extrabold text-foreground tracking-tight">
@@ -1863,8 +1889,63 @@ const Dashboard = () => {
           </div>
         </div>
       )}
+
+      {/* ─── Clear History Confirmation Modal ─── */}
+      {showClearHistoryConfirm && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center px-4">
+          {/* Backdrop */}
+          <div
+            className="absolute inset-0 bg-black/60 backdrop-blur-md"
+            onClick={() => setShowClearHistoryConfirm(false)}
+          />
+
+          {/* Modal */}
+          <div className="relative w-full max-w-sm bg-white dark:bg-card border border-border/80 rounded-2xl p-6 shadow-2xl animate-in fade-in zoom-in-95 duration-200">
+            {/* Icon */}
+            <div className="mx-auto w-12 h-12 rounded-full bg-destructive/10 flex items-center justify-center mb-4">
+              <Trash2 className="h-6 w-6 text-destructive" strokeWidth={2} />
+            </div>
+
+            {/* Title & Description */}
+            <h3 className="text-lg font-extrabold text-foreground tracking-tight text-center mb-2">
+              Clear All History?
+            </h3>
+            <p className="text-sm text-muted-foreground text-center mb-6">
+              This will permanently delete all {prescriptions.length} prescription{prescriptions.length !== 1 ? 's' : ''} and {schedules.length} medication schedule{schedules.length !== 1 ? 's' : ''}. This action cannot be undone.
+            </p>
+
+            {/* Actions */}
+            <div className="flex gap-3">
+              <Button
+                variant="outline"
+                onClick={() => setShowClearHistoryConfirm(false)}
+                disabled={isClearingHistory}
+                className="flex-1 rounded-xl border-border shadow-none"
+              >
+                Cancel
+              </Button>
+              <Button
+                onClick={handleClearHistory}
+                disabled={isClearingHistory}
+                className="flex-1 rounded-xl bg-destructive text-destructive-foreground hover:bg-destructive/90 shadow-none"
+              >
+                {isClearingHistory ? (
+                  <>
+                    <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                    Clearing...
+                  </>
+                ) : (
+                  <>
+                    <Trash2 className="h-4 w-4 mr-2" />
+                    Clear All
+                  </>
+                )}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
-
 export default Dashboard;

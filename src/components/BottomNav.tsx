@@ -42,10 +42,7 @@ const BottomNav = ({ activeTab, onTabChange, onUploadClick }: BottomNavProps) =>
 
   return (
     <nav className="fixed bottom-0 left-0 right-0 z-50 md:hidden">
-      {/* Gradient fade effect above nav */}
-      <div className="h-6 bg-gradient-to-t from-background/80 to-transparent pointer-events-none" />
-
-      <div className="mx-3 mb-3 rounded-2xl border border-border/50 bg-card/80 backdrop-blur-2xl shadow-[0_-4px_30px_-4px_rgba(0,0,0,0.1)] dark:shadow-[0_-4px_30px_-4px_rgba(0,0,0,0.3)] safe-area-inset-bottom">
+      <div className="mx-3 mb-3 rounded-2xl border border-border/60 bg-white/95 dark:bg-card/95 backdrop-blur-xl shadow-[0_-2px_12px_-2px_rgba(0,0,0,0.06)] dark:shadow-[0_-4px_24px_-4px_rgba(0,0,0,0.3)] safe-area-inset-bottom">
         <div ref={navRef} className="relative flex items-center justify-around px-1.5 pt-2 pb-2">
           {/* Animated indicator pill */}
           <div
@@ -72,9 +69,9 @@ const BottomNav = ({ activeTab, onTabChange, onUploadClick }: BottomNavProps) =>
                 >
                   <div className="relative">
                     {/* Glow ring */}
-                    <div className="absolute -inset-1.5 rounded-2xl bg-primary/20 blur-md opacity-60 group-active:opacity-100 transition-opacity" />
+                    <div className="absolute -inset-1.5 rounded-2xl bg-primary/30 blur-lg opacity-40 group-active:opacity-70 transition-opacity" />
                     {/* Button */}
-                    <div className="relative w-14 h-14 rounded-2xl bg-gradient-to-br from-primary to-primary/80 flex items-center justify-center shadow-lg shadow-primary/25 group-active:scale-95 transition-transform">
+                    <div className="relative w-14 h-14 rounded-2xl bg-gradient-to-br from-primary to-primary/90 flex items-center justify-center shadow-lg shadow-primary/20 group-active:scale-95 transition-transform">
                       <Icon className="h-6 w-6 text-primary-foreground" strokeWidth={2.2} />
                     </div>
                   </div>

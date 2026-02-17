@@ -309,4 +309,19 @@ export const prescriptionApi = {
 
     return result;
   },
+
+  async clearHistory(userId: string): Promise<{ success: boolean; message: string; prescriptions_deleted: number; schedules_deleted: number }> {
+    const response = await fetch(`${API_BASE_URL}/api/user/${userId}/prescriptions`, {
+      method: "DELETE",
+      headers: getAuthHeaders(),
+    });
+
+    const result = await response.json();
+
+    if (!response.ok) {
+      throw new Error(result.error || result.detail || "Clear history failed");
+    }
+
+    return result;
+  },
 };
