@@ -71,6 +71,12 @@ interface Schedule {
   dosage: string;
   frequency: string;
   timings: string[];
+  custom_times?: {
+    morning?: string;
+    afternoon?: string;
+    evening?: string;
+    night?: string;
+  };
   enabled: boolean;
   created_at: string;
 }
@@ -293,6 +299,12 @@ export const prescriptionApi = {
       dosage?: string;
       frequency?: string;
       timings?: string[];
+      custom_times?: {
+        morning?: string;
+        afternoon?: string;
+        evening?: string;
+        night?: string;
+      };
     }
   ): Promise<{ success: boolean; message: string; schedule: Schedule }> {
     const response = await fetch(`${API_BASE_URL}/api/schedule/${scheduleId}`, {

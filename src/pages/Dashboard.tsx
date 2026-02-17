@@ -52,6 +52,12 @@ interface Schedule {
   dosage: string;
   frequency: string;
   timings: string[];
+  custom_times?: {
+    morning?: string;
+    afternoon?: string;
+    evening?: string;
+    night?: string;
+  };
   enabled: boolean;
   created_at: string;
 }
@@ -82,6 +88,12 @@ const Dashboard = () => {
     dosage: "",
     frequency: "",
     timings: [] as string[],
+    custom_times: {} as {
+      morning?: string;
+      afternoon?: string;
+      evening?: string;
+      night?: string;
+    },
   });
   const [isSavingEdit, setIsSavingEdit] = useState(false);
   const [showProfileMenu, setShowProfileMenu] = useState(false);
@@ -265,6 +277,7 @@ const Dashboard = () => {
       dosage: schedule.dosage,
       frequency: schedule.frequency,
       timings: [...schedule.timings],
+      custom_times: schedule.custom_times || {},
     });
   };
 
@@ -309,11 +322,40 @@ const Dashboard = () => {
   };
 
   const toggleEditTiming = (timing: string) => {
+    setEditForm((prev) => {
+      const isRemoving = prev.timings.includes(timing);
+      const newTimings = isRemoving
+        ? prev.timings.filter((t) => t !== timing)
+        : [...prev.timings, timing];
+      
+      // Initialize default time when adding a timing
+      const defaultTimes: Record<string, string> = {
+        morning: "08:00",
+        afternoon: "13:00",
+        evening: "18:00",
+        night: "21:00",
+      };
+      
+      const newCustomTimes = { ...prev.custom_times };
+      if (!isRemoving && !newCustomTimes[timing as keyof typeof newCustomTimes]) {
+        newCustomTimes[timing as keyof typeof newCustomTimes] = defaultTimes[timing] || "09:00";
+      }
+      
+      return {
+        ...prev,
+        timings: newTimings,
+        custom_times: newCustomTimes,
+      };
+    });
+  };
+
+  const updateCustomTime = (timing: string, time: string) => {
     setEditForm((prev) => ({
       ...prev,
-      timings: prev.timings.includes(timing)
-        ? prev.timings.filter((t) => t !== timing)
-        : [...prev.timings, timing],
+      custom_times: {
+        ...prev.custom_times,
+        [timing]: time,
+      },
     }));
   };
 
@@ -530,18 +572,29 @@ const Dashboard = () => {
                       {schedule.timings.map((timing) => {
                         const details = getTimingDetails(timing);
                         const TimingIcon = details.icon;
+                        const customTime = schedule.custom_times?.[timing as keyof typeof schedule.custom_times];
                         return (
                           <div
                             key={timing}
-                            className={cn(
-                              "w-7 h-7 rounded-lg flex items-center justify-center",
-                              details.bg
-                            )}
+                            className="flex flex-col items-center gap-0.5"
+                            title={customTime || timing}
                           >
-                            <TimingIcon
-                              className={cn("h-3.5 w-3.5", details.color)}
-                              strokeWidth={2}
-                            />
+                            <div
+                              className={cn(
+                                "w-7 h-7 rounded-lg flex items-center justify-center",
+                                details.bg
+                              )}
+                            >
+                              <TimingIcon
+                                className={cn("h-3.5 w-3.5", details.color)}
+                                strokeWidth={2}
+                              />
+                            </div>
+                            {customTime && (
+                              <span className="text-[9px] font-semibold text-muted-foreground">
+                                {customTime}
+                              </span>
+                            )}
                           </div>
                         );
                       })}
@@ -730,17 +783,22 @@ const Dashboard = () => {
                         {schedule.timings.map((timing) => {
                           const details = getTimingDetails(timing);
                           const TimingIcon = details.icon;
+                          const customTime = schedule.custom_times?.[timing as keyof typeof schedule.custom_times];
                           return (
                             <span
                               key={timing}
                               className={cn(
-                                "inline-flex items-center gap-1 rounded-lg px-2.5 py-1 text-xs font-medium capitalize",
+                                "inline-flex items-center gap-1 rounded-lg px-2.5 py-1 text-xs font-medium",
                                 details.bg,
                                 details.color
                               )}
                             >
                               <TimingIcon className="h-3 w-3" strokeWidth={2} />
-                              {timing}
+                              {customTime ? (
+                                <span className="font-semibold">{customTime}</span>
+                              ) : (
+                                <span className="capitalize">{timing}</span>
+                              )}
                             </span>
                           );
                         })}
@@ -1833,30 +1891,44 @@ const Dashboard = () => {
                 <label className="block text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">
                   Timings
                 </label>
-                <div className="grid grid-cols-2 gap-2">
+                <div className="space-y-3">
                   {(["morning", "afternoon", "evening", "night"] as const).map(
                     (timing) => {
                       const details = getTimingDetails(timing);
                       const TimingIcon = details.icon;
                       const isSelected = editForm.timings.includes(timing);
                       return (
-                        <button
-                          key={timing}
-                          type="button"
-                          onClick={() => toggleEditTiming(timing)}
-                          className={cn(
-                            "flex items-center gap-2.5 rounded-xl px-4 py-3 text-sm font-medium capitalize border transition-all",
-                            isSelected
-                              ? "border-primary bg-primary/10 text-primary"
-                              : "border-border bg-background text-muted-foreground hover:bg-muted"
-                          )}
-                        >
-                          <TimingIcon className="h-4 w-4" strokeWidth={2} />
-                          {timing}
+                        <div key={timing} className="space-y-2">
+                          <button
+                            type="button"
+                            onClick={() => toggleEditTiming(timing)}
+                            className={cn(
+                              "w-full flex items-center gap-2.5 rounded-xl px-4 py-3 text-sm font-medium capitalize border transition-all",
+                              isSelected
+                                ? "border-primary bg-primary/10 text-primary"
+                                : "border-border bg-background text-muted-foreground hover:bg-muted"
+                            )}
+                          >
+                            <TimingIcon className="h-4 w-4" strokeWidth={2} />
+                            {timing}
+                            {isSelected && (
+                              <Check className="h-3.5 w-3.5 ml-auto" strokeWidth={2.5} />
+                            )}
+                          </button>
+                          
+                          {/* Time picker when selected */}
                           {isSelected && (
-                            <Check className="h-3.5 w-3.5 ml-auto" strokeWidth={2.5} />
+                            <div className="pl-4 flex items-center gap-3">
+                              <Clock className="h-4 w-4 text-muted-foreground" strokeWidth={2} />
+                              <input
+                                type="time"
+                                value={editForm.custom_times[timing] || "09:00"}
+                                onChange={(e) => updateCustomTime(timing, e.target.value)}
+                                className="flex-1 rounded-lg border border-border bg-background px-3 py-2 text-sm font-medium text-foreground focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-colors"
+                              />
+                            </div>
                           )}
-                        </button>
+                        </div>
                       );
                     }
                   )}
