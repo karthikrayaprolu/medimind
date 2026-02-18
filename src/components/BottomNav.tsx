@@ -23,9 +23,11 @@ const BottomNav = ({ activeTab, onTabChange, onUploadClick }: BottomNavProps) =>
   // Calculate indicator position
   useEffect(() => {
     if (!navRef.current) return;
-    const activeIndex = navItems.findIndex(
-      (item) => item.id === activeTab && !item.isUpload
-    );
+    
+    // Filter out upload items first to match DOM structure
+    const nonUploadItems = navItems.filter((item) => !item.isUpload);
+    const activeIndex = nonUploadItems.findIndex((item) => item.id === activeTab);
+    
     if (activeIndex === -1) return;
 
     const buttons = navRef.current.querySelectorAll("[data-nav-item]");

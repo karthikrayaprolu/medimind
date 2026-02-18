@@ -45,6 +45,7 @@ import { prescriptionApi } from "@/lib/api";
 import { cn } from "@/lib/utils";
 import BottomNav from "@/components/BottomNav";
 import ProfileAvatar, { avatarIds } from "@/components/ProfileAvatar";
+import { useLocalNotifications } from "@/hooks/use-local-notifications";
 
 interface Schedule {
   _id: string;
@@ -117,6 +118,9 @@ const Dashboard = () => {
   const [reminderSound, setReminderSound] = useState(() => {
     try { return localStorage.getItem("medimind-reminder-sound") !== "false"; } catch { return true; }
   });
+
+  // Schedule local notifications for offline medication reminders
+  useLocalNotifications(schedules, notificationsEnabled);
 
   // Scroll to top when changing tabs to prevent bottom nav from being scrolled out of view
   useEffect(() => {
