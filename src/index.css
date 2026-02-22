@@ -117,11 +117,27 @@
   html {
     scroll-behavior: smooth;
     -webkit-tap-highlight-color: transparent;
+    /* Prevent Android WebView from inflating text based on system font-size */
+    -webkit-text-size-adjust: 100%;
+    text-size-adjust: 100%;
+    /* Lock the root font size so rem units stay consistent across devices */
+    font-size: 16px;
   }
 
   body {
     @apply bg-background text-foreground antialiased;
     font-family: 'Inter', system-ui, -apple-system, sans-serif;
+    /* Prevent pull-to-refresh and overscroll bounce on mobile */
+    overscroll-behavior: none;
+    /* Ensure full viewport coverage */
+    min-height: 100dvh;
+    /* Prevent accidental double-tap zoom */
+    touch-action: manipulation;
+  }
+
+  /* Ensure inputs don't trigger zoom on iOS (font-size < 16px causes zoom) */
+  input, select, textarea {
+    font-size: 16px;
   }
 }
 

@@ -1,5 +1,6 @@
 import { FormEvent, useMemo, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
+import { Capacitor } from "@capacitor/core";
 import { LogIn, UserPlus, Mail, Lock, ArrowLeft, User, Eye, EyeOff } from "lucide-react";
 import LogoIcon from "@/components/LogoIcon";
 import { Button } from "@/components/ui/button";
@@ -92,26 +93,28 @@ const AuthPage = () => {
   };
 
   return (
-    <div className="relative min-h-screen bg-background flex items-center justify-center px-4 py-8">
+    <div className="relative min-h-[100dvh] bg-background flex flex-col overflow-y-auto px-4 py-8">
       {/* Decorative blobs */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
         <div className="absolute -top-32 -right-32 w-96 h-96 bg-primary/5 rounded-full blur-3xl" />
         <div className="absolute -bottom-32 -left-32 w-[400px] h-[400px] bg-secondary/5 rounded-full blur-3xl" />
       </div>
 
-      {/* Back Button */}
-      <div className="absolute top-4 left-4 safe-area-inset-top">
-        <button
-          onClick={() => navigate("/")}
-          className="flex items-center gap-1.5 rounded-xl px-3 py-2 text-sm font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-        >
-          <ArrowLeft className="h-4 w-4" />
-          Back
-        </button>
-      </div>
+      {/* Back Button — hidden on native since hardware back is available */}
+      {!Capacitor.isNativePlatform() && (
+        <div className="absolute top-4 left-4 safe-area-inset-top z-20">
+          <button
+            onClick={() => navigate("/")}
+            className="flex items-center gap-1.5 rounded-xl px-3 py-2 text-sm font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+          >
+            <ArrowLeft className="h-4 w-4" />
+            Back
+          </button>
+        </div>
+      )}
 
-      {/* Auth Card */}
-      <div className="relative z-10 w-full max-w-md">
+      {/* Auth Card — centered with flex grow so it scrolls when keyboard opens */}
+      <div className="relative z-10 w-full max-w-md m-auto">
         <div className="rounded-2xl border border-border/60 bg-card shadow-card overflow-hidden">
           <div className="p-6 sm:p-8">
             {/* Header */}

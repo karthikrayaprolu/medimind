@@ -13,10 +13,21 @@
 				"sound",
 				"alert"
 			]
+		},
+		"Keyboard": {
+			"resize": "body",
+			"resizeOnFullScreen": true
+		},
+		"SplashScreen": {
+			"launchAutoHide": false,
+			"backgroundColor": "#FFF9F5",
+			"androidScaleType": "CENTER_CROP"
 		}
 	},
 	"android": {
-		"allowMixedContent": true
+		"allowMixedContent": true,
+		"initialFocus": false,
+		"appendUserAgent": "MediMind/1.0"
 	},
 	"ios": {
 		"contentInset": "automatic"

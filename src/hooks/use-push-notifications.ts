@@ -52,27 +52,41 @@ export const usePushNotifications = (): UsePushNotificationsReturn => {
 
       // Return a promise that resolves with the token
       return new Promise((resolve) => {
+        let settled = false;
+
         // Set up one-time listener for registration token
         const tokenListener = PushNotifications.addListener('registration', (token: Token) => {
+          if (settled) return;
+          settled = true;
           console.log('[Push] Registration successful, token:', token.value);
           setFcmToken(token.value);
           setIsRegistered(true);
           setError(null);
+          // Clean up both listeners immediately
+          tokenListener.then(l => l.remove());
+          errorListener.then(l => l.remove());
           resolve(token.value);
         });
 
         // Handle registration errors
         const errorListener = PushNotifications.addListener('registrationError', (err) => {
+          if (settled) return;
+          settled = true;
           console.error('[Push] Registration error:', err.error);
           setError(err.error);
           setIsRegistered(false);
+          tokenListener.then(l => l.remove());
+          errorListener.then(l => l.remove());
           resolve(null);
         });
 
-        // Cleanup listeners after 10 seconds if no response
+        // Fallback timeout — clean up if neither fires
         setTimeout(() => {
+          if (settled) return;
+          settled = true;
           tokenListener.then(l => l.remove());
           errorListener.then(l => l.remove());
+          resolve(null);
         }, 10000);
       });
 

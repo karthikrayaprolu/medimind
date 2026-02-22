@@ -14,9 +14,21 @@ const config: CapacitorConfig = {
     PushNotifications: {
       presentationOptions: ['badge', 'sound', 'alert'],
     },
+    Keyboard: {
+      resize: 'body',
+      resizeOnFullScreen: true,
+    },
+    SplashScreen: {
+      launchAutoHide: false,       // we hide it manually after React mounts
+      backgroundColor: '#FFF9F5',
+      androidScaleType: 'CENTER_CROP',
+    },
   },
   android: {
     allowMixedContent: true,
+    // Lock initial scale so the WebView doesn't auto-zoom based on DPI
+    initialFocus: false,
+    appendUserAgent: 'MediMind/1.0',
   },
   ios: {
     contentInset: 'automatic',

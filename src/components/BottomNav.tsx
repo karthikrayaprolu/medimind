@@ -2,6 +2,14 @@ import { Home, Camera, Clock, TrendingUp, FileText } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useEffect, useRef, useState } from "react";
 
+const navItems = [
+  { id: "home", icon: Home, label: "Home" },
+  { id: "schedules", icon: Clock, label: "Meds" },
+  { id: "upload", icon: Camera, label: "Scan", isUpload: true },
+  { id: "insights", icon: TrendingUp, label: "Insights" },
+  { id: "history", icon: FileText, label: "History" },
+] as const;
+
 interface BottomNavProps {
   activeTab: string;
   onTabChange: (tab: string) => void;
@@ -11,14 +19,6 @@ interface BottomNavProps {
 const BottomNav = ({ activeTab, onTabChange, onUploadClick }: BottomNavProps) => {
   const navRef = useRef<HTMLDivElement>(null);
   const [indicatorStyle, setIndicatorStyle] = useState({ left: 0, width: 0 });
-
-  const navItems = [
-    { id: "home", icon: Home, label: "Home" },
-    { id: "schedules", icon: Clock, label: "Meds" },
-    { id: "upload", icon: Camera, label: "Scan", isUpload: true },
-    { id: "insights", icon: TrendingUp, label: "Insights" },
-    { id: "history", icon: FileText, label: "History" },
-  ];
 
   // Calculate indicator position
   useEffect(() => {
