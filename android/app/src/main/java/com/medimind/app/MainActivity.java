@@ -3,7 +3,6 @@ package com.medimind.app;
 import android.content.res.Configuration;
 import android.content.res.Resources;
 import android.graphics.Color;
-import android.os.Build;
 import android.os.Bundle;
 import android.view.View;
 import android.view.Window;
@@ -16,16 +15,20 @@ public class MainActivity extends BridgeActivity {
 
     @Override
     public void onCreate(Bundle savedInstanceState) {
-        super.onCreate(savedInstanceState);
-
-        // Make status bar white with dark icons from the very first frame
+        // Set status bar BEFORE super.onCreate() so it applies from the first frame
         Window window = getWindow();
         window.setStatusBarColor(Color.WHITE);
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-            window.getDecorView().setSystemUiVisibility(
-                View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR
-            );
-        }
+        window.getDecorView().setSystemUiVisibility(
+            View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR  // dark icons on light bar
+        );
+
+        super.onCreate(savedInstanceState);
+
+        // Re-apply after Capacitor's bridge init (it may reset the flags)
+        window.setStatusBarColor(Color.WHITE);
+        window.getDecorView().setSystemUiVisibility(
+            View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR
+        );
 
         // After the bridge initialises, lock the WebView text zoom to 100%
         // so the app looks identical regardless of the user's system font-size setting.
