@@ -89,11 +89,15 @@ export const usePushNotifications = (): UsePushNotificationsReturn => {
     if (!isSupported) return;
 
     // Handle notification received while app is in foreground
+    // Since FCM now sends data-only messages (no notification payload),
+    // they arrive here silently. Local notifications handle visible alerts,
+    // so we intentionally do NOT show a duplicate notification here.
     const receivedListener = PushNotifications.addListener(
       'pushNotificationReceived',
       (notification: PushNotificationSchema) => {
-        console.log('[Push] Notification received:', notification);
-        // You can show a toast or in-app notification here
+        console.log('[Push] Data message received in foreground (suppressed — local notif handles display):', notification.data);
+        // No toast or in-app alert — local notifications already handle
+        // visible reminders at the scheduled time.
       }
     );
 
