@@ -15,19 +15,23 @@ public class MainActivity extends BridgeActivity {
 
     @Override
     public void onCreate(Bundle savedInstanceState) {
-        // Set status bar BEFORE super.onCreate() so it applies from the first frame
+        // Make status bar fully transparent before anything renders
         Window window = getWindow();
-        window.setStatusBarColor(Color.WHITE);
+        window.setStatusBarColor(Color.TRANSPARENT);
         window.getDecorView().setSystemUiVisibility(
-            View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR  // dark icons on light bar
+            View.SYSTEM_UI_FLAG_LAYOUT_STABLE
+            | View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN
+            | View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR
         );
 
         super.onCreate(savedInstanceState);
 
-        // Re-apply after Capacitor's bridge init (it may reset the flags)
-        window.setStatusBarColor(Color.WHITE);
+        // Re-apply after Capacitor's bridge init (it can reset flags)
+        window.setStatusBarColor(Color.TRANSPARENT);
         window.getDecorView().setSystemUiVisibility(
-            View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR
+            View.SYSTEM_UI_FLAG_LAYOUT_STABLE
+            | View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN
+            | View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR
         );
 
         // After the bridge initialises, lock the WebView text zoom to 100%

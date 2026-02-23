@@ -60,16 +60,31 @@ const BackButtonHandler = () => {
   return null;
 };
 
-/** Configures native status bar appearance */
+/** Configures native status bar appearance — reacts to theme changes */
 const useStatusBar = () => {
   useEffect(() => {
     if (!isNative) return;
 
-    import("@capacitor/status-bar").then(({ StatusBar, Style }) => {
-      StatusBar.setStyle({ style: Style.Light });
-      StatusBar.setBackgroundColor({ color: "#FFFFFF" });
-      StatusBar.setOverlaysWebView({ overlay: false });
-    }).catch(() => {});
+    const applyStatusBar = async () => {
+      try {
+        const { StatusBar, Style } = await import("@capacitor/status-bar");
+        const isDark = document.documentElement.classList.contains("dark");
+
+        // Style.Light = dark icons (for light backgrounds)
+        // Style.Dark  = light icons (for dark backgrounds)
+        await StatusBar.setStyle({ style: isDark ? Style.Dark : Style.Light });
+        await StatusBar.setBackgroundColor({ color: isDark ? "#1a1510" : "#ffffff" });
+        await StatusBar.setOverlaysWebView({ overlay: false });
+      } catch {}
+    };
+
+    applyStatusBar();
+
+    // Watch for theme class changes on <html> so the status bar updates live
+    const observer = new MutationObserver(() => applyStatusBar());
+    observer.observe(document.documentElement, { attributes: true, attributeFilter: ["class"] });
+
+    return () => observer.disconnect();
   }, []);
 };
 
