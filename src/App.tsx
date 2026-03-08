@@ -4,7 +4,7 @@ import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { ThemeProvider } from "@/components/theme-provider";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route, Navigate, useNavigate, useLocation } from "react-router-dom";
+import { BrowserRouter, MemoryRouter, Routes, Route, Navigate, useNavigate, useLocation } from "react-router-dom";
 import { Capacitor } from "@capacitor/core";
 import Index from "./pages/Index";
 import AuthPage from "./pages/Auth";
@@ -88,6 +88,13 @@ const useStatusBar = () => {
   }, []);
 };
 
+/**
+ * Use MemoryRouter on native platforms to avoid Android WebView URL
+ * restoration issues that cause blank screens on re-launch.
+ * BrowserRouter is fine for the web.
+ */
+const Router = isNative ? MemoryRouter : BrowserRouter;
+
 const App = () => {
   // Show splash only on native mobile platforms (Android / iOS)
   const [showSplash, setShowSplash] = useState(isNative);
@@ -104,13 +111,14 @@ const App = () => {
     }
   }, []);
 
-  if (showSplash) {
-    return (
-      <ThemeProvider defaultTheme="light" storageKey="medimind-ui-theme">
-        <SplashScreen onComplete={() => setShowSplash(false)} />
-      </ThemeProvider>
-    );
-  }
+  // Safety fallback: force-dismiss the React splash after a generous timeout
+  // in case AnimatePresence.onExitComplete never fires (known framer-motion
+  // issue on Android WebView with cached state).
+  useEffect(() => {
+    if (!showSplash) return;
+    const safety = setTimeout(() => setShowSplash(false), 4500); // splash duration (2800) + exit anim (500) + buffer
+    return () => clearTimeout(safety);
+  }, [showSplash]);
 
   return (
     <QueryClientProvider client={queryClient}>
@@ -119,7 +127,7 @@ const App = () => {
           <Toaster />
           <Sonner />
           <AuthProvider>
-            <BrowserRouter>
+            <Router>
               <BackButtonHandler />
               <Routes>
                 <Route path="/" element={<LandingRoute />} />
@@ -135,9 +143,14 @@ const App = () => {
                 {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
                 <Route path="*" element={<NotFound />} />
               </Routes>
-            </BrowserRouter>
+            </Router>
           </AuthProvider>
         </TooltipProvider>
+
+        {/* Splash rendered as overlay so the main app tree mounts underneath */}
+        {showSplash && (
+          <SplashScreen onComplete={() => setShowSplash(false)} />
+        )}
       </ThemeProvider>
     </QueryClientProvider>
   );

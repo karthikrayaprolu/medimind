@@ -19,6 +19,16 @@ const SplashScreen = ({ onComplete, duration = 2800 }: SplashScreenProps) => {
     return () => clearTimeout(timer);
   }, [duration]);
 
+  // Safety fallback: call onComplete directly after enough time
+  // in case AnimatePresence.onExitComplete never fires (known framer-motion
+  // issue on Android WebView with restored/cached state).
+  useEffect(() => {
+    const safety = setTimeout(() => {
+      onComplete();
+    }, duration + 800); // exit animation (500ms) + generous buffer
+    return () => clearTimeout(safety);
+  }, [duration, onComplete]);
+
   return (
     <AnimatePresence onExitComplete={onComplete}>
       {visible && (

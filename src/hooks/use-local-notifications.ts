@@ -47,9 +47,22 @@ function generateNotificationId(scheduleId: string, timing: string): number {
   return Math.abs(hash) % 2147483647 || 1;
 }
 
+// Build a fingerprint of the current schedule set so we only re-schedule when something changes
+function buildScheduleFingerprint(schedules: Schedule[], enabled: boolean): string {
+  if (!enabled) return "disabled";
+  const data = schedules
+    .filter((s) => s.enabled)
+    .map((s) => `${s._id}|${s.timings.join(",")}|${JSON.stringify(s.custom_times || {})}`)
+    .sort()
+    .join(";");
+  return data || "empty";
+}
+
+const FINGERPRINT_KEY = "medimind-notif-fingerprint";
+
 export function useLocalNotifications(schedules: Schedule[], notificationsEnabled: boolean) {
   const isSupported = Capacitor.isNativePlatform();
-  const scheduledRef = useRef(false);
+  const lastFingerprintRef = useRef<string>("");
 
   // Request permissions on mount
   useEffect(() => {
@@ -93,6 +106,17 @@ export function useLocalNotifications(schedules: Schedule[], notificationsEnable
   const scheduleNotifications = useCallback(async () => {
     if (!isSupported) return;
 
+    // Build fingerprint to avoid duplicate re-scheduling with same data
+    const fingerprint = buildScheduleFingerprint(schedules, notificationsEnabled);
+    try {
+      const stored = localStorage.getItem(FINGERPRINT_KEY) || "";
+      if (fingerprint === stored && fingerprint === lastFingerprintRef.current) {
+        console.log("[LocalNotif] Schedules unchanged, skipping re-schedule");
+        return;
+      }
+    } catch { /* ignore */ }
+    lastFingerprintRef.current = fingerprint;
+
     try {
       // Cancel all previously scheduled notifications
       const pending = await LocalNotifications.getPending();
@@ -106,6 +130,7 @@ export function useLocalNotifications(schedules: Schedule[], notificationsEnable
       // If notifications are disabled, don't schedule new ones
       if (!notificationsEnabled) {
         console.log("[LocalNotif] Notifications disabled, skipping scheduling");
+        try { localStorage.setItem(FINGERPRINT_KEY, fingerprint); } catch {}
         return;
       }
 
@@ -113,9 +138,12 @@ export function useLocalNotifications(schedules: Schedule[], notificationsEnable
       const enabledSchedules = schedules.filter((s) => s.enabled);
       if (enabledSchedules.length === 0) {
         console.log("[LocalNotif] No enabled schedules");
+        try { localStorage.setItem(FINGERPRINT_KEY, fingerprint); } catch {}
         return;
       }
 
+      // Use a Set to prevent duplicate notification IDs
+      const seenIds = new Set<number>();
       const notifications: ScheduleOptions["notifications"] = [];
 
       for (const schedule of enabledSchedules) {
@@ -127,6 +155,10 @@ export function useLocalNotifications(schedules: Schedule[], notificationsEnable
           if (!time) continue;
 
           const notifId = generateNotificationId(schedule._id, timing);
+
+          // Skip duplicate IDs (same schedule+timing combo)
+          if (seenIds.has(notifId)) continue;
+          seenIds.add(notifId);
 
           notifications.push({
             id: notifId,
@@ -159,6 +191,9 @@ export function useLocalNotifications(schedules: Schedule[], notificationsEnable
         await LocalNotifications.schedule({ notifications });
         console.log(`[LocalNotif] Scheduled ${notifications.length} notifications for ${enabledSchedules.length} medicines`);
       }
+
+      // Persist fingerprint so we don't redundantly re-schedule on next app open
+      try { localStorage.setItem(FINGERPRINT_KEY, fingerprint); } catch {}
     } catch (err) {
       console.error("[LocalNotif] Error scheduling notifications:", err);
     }

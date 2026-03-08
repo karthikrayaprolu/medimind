@@ -47,6 +47,81 @@ import BottomNav from "@/components/BottomNav";
 import ProfileAvatar, { avatarIds } from "@/components/ProfileAvatar";
 import { useLocalNotifications } from "@/hooks/use-local-notifications";
 
+// ── Image Compression Utility ──
+// Compress camera/gallery images to prevent upload failures with large files
+const MAX_IMAGE_DIMENSION = 2048;
+const JPEG_QUALITY = 0.75;
+const MAX_FILE_SIZE_BYTES = 4 * 1024 * 1024; // 4 MB target
+
+function compressImage(file: File): Promise<File> {
+  return new Promise((resolve, reject) => {
+    // If already small enough, return as-is
+    if (file.size <= MAX_FILE_SIZE_BYTES && !file.type.startsWith("image/")) {
+      resolve(file);
+      return;
+    }
+
+    const img = new Image();
+    const url = URL.createObjectURL(file);
+
+    img.onload = () => {
+      URL.revokeObjectURL(url);
+
+      let { width, height } = img;
+
+      // Scale down if either dimension exceeds the max
+      if (width > MAX_IMAGE_DIMENSION || height > MAX_IMAGE_DIMENSION) {
+        const ratio = Math.min(
+          MAX_IMAGE_DIMENSION / width,
+          MAX_IMAGE_DIMENSION / height
+        );
+        width = Math.round(width * ratio);
+        height = Math.round(height * ratio);
+      }
+
+      const canvas = document.createElement("canvas");
+      canvas.width = width;
+      canvas.height = height;
+
+      const ctx = canvas.getContext("2d");
+      if (!ctx) {
+        reject(new Error("Canvas context unavailable"));
+        return;
+      }
+
+      ctx.drawImage(img, 0, 0, width, height);
+
+      canvas.toBlob(
+        (blob) => {
+          if (!blob) {
+            reject(new Error("Image compression failed"));
+            return;
+          }
+          const compressedFile = new File(
+            [blob],
+            file.name.replace(/\.[^.]+$/, ".jpg"),
+            { type: "image/jpeg" }
+          );
+          console.log(
+            `[Compress] ${(file.size / 1024).toFixed(0)}KB → ${(compressedFile.size / 1024).toFixed(0)}KB (${width}x${height})`
+          );
+          resolve(compressedFile);
+        },
+        "image/jpeg",
+        JPEG_QUALITY
+      );
+    };
+
+    img.onerror = () => {
+      URL.revokeObjectURL(url);
+      // If we can't decode the image, send the original
+      resolve(file);
+    };
+
+    img.src = url;
+  });
+}
+
 interface Schedule {
   _id: string;
   medicine_name: string;
@@ -144,6 +219,17 @@ const Dashboard = () => {
   // Load data on mount
   useEffect(() => {
     if (token) {
+      // Immediately load cached schedules so local notifications work offline
+      try {
+        const cached = localStorage.getItem("medimind-schedules-cache");
+        if (cached) {
+          const parsed = JSON.parse(cached) as Schedule[];
+          if (Array.isArray(parsed) && parsed.length > 0) {
+            setSchedules(parsed);
+            console.log(`[Cache] Loaded ${parsed.length} cached schedules for offline use`);
+          }
+        }
+      } catch { /* ignore corrupt cache */ }
       loadData();
     }
   }, [token]);
@@ -156,12 +242,17 @@ const Dashboard = () => {
         prescriptionApi.getUserPrescriptions(token!),
       ]);
       // Sort by created_at descending (latest first)
-      setSchedules(schedulesData.sort((a, b) => 
+      const sortedSchedules = schedulesData.sort((a, b) => 
         new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
-      ));
+      );
+      setSchedules(sortedSchedules);
       setPrescriptions(prescriptionsData.sort((a, b) => 
         new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
       ));
+      // Persist schedules to localStorage for offline access
+      try {
+        localStorage.setItem("medimind-schedules-cache", JSON.stringify(sortedSchedules));
+      } catch { /* storage full — non-critical */ }
     } catch (error) {
       console.error("Failed to load data:", error);
     } finally {
@@ -190,7 +281,11 @@ const Dashboard = () => {
 
     setIsUploading(true);
     try {
-      await prescriptionApi.uploadPrescription(file, token);
+      // Compress large camera images before uploading
+      const processedFile = file.type.startsWith("image/")
+        ? await compressImage(file)
+        : file;
+      await prescriptionApi.uploadPrescription(processedFile, token);
       toast({
         title: "Prescription uploaded!",
         description: "Your prescription has been processed successfully.",

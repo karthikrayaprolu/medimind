@@ -3,6 +3,22 @@ const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:8000
 // Session token management for mobile apps (Capacitor)
 const SESSION_KEY = "medimind-session-token";
 
+// Default fetch timeout (15 seconds) to prevent hanging requests
+const DEFAULT_TIMEOUT_MS = 15_000;
+
+/** Wraps fetch with an AbortController timeout so requests never hang forever */
+const fetchWithTimeout = (
+  input: RequestInfo | URL,
+  init?: RequestInit,
+  timeoutMs = DEFAULT_TIMEOUT_MS,
+): Promise<Response> => {
+  const controller = new AbortController();
+  const id = setTimeout(() => controller.abort(), timeoutMs);
+  return fetch(input, { ...init, signal: controller.signal }).finally(() =>
+    clearTimeout(id),
+  );
+};
+
 export const getSessionToken = (): string | null => {
   if (typeof window === "undefined") return null;
   try {
@@ -91,7 +107,7 @@ interface Prescription {
 
 export const authApi = {
   async login(data: LoginRequest): Promise<AuthResponse> {
-    const response = await fetch(`${API_BASE_URL}/auth/login`, {
+    const response = await fetchWithTimeout(`${API_BASE_URL}/auth/login`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -114,7 +130,7 @@ export const authApi = {
   },
 
   async signup(data: SignupRequest): Promise<AuthResponse> {
-    const response = await fetch(`${API_BASE_URL}/auth/signup`, {
+    const response = await fetchWithTimeout(`${API_BASE_URL}/auth/signup`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -137,7 +153,7 @@ export const authApi = {
   },
 
   async logout(): Promise<void> {
-    const response = await fetch(`${API_BASE_URL}/auth/logout`, {
+    const response = await fetchWithTimeout(`${API_BASE_URL}/auth/logout`, {
       method: "POST",
       headers: getAuthHeaders(),
     });
@@ -151,7 +167,7 @@ export const authApi = {
   },
 
   async me(): Promise<{ user_id: string; email: string; fullName?: string }> {
-    const response = await fetch(`${API_BASE_URL}/auth/me`, {
+    const response = await fetchWithTimeout(`${API_BASE_URL}/auth/me`, {
       headers: getAuthHeaders(),
     });
 
@@ -163,7 +179,7 @@ export const authApi = {
   },
 
   async updateFcmToken(token: string): Promise<{ success: boolean }> {
-    const response = await fetch(`${API_BASE_URL}/auth/fcm-token`, {
+    const response = await fetchWithTimeout(`${API_BASE_URL}/auth/fcm-token`, {
       method: "POST",
       headers: getAuthHeaders(),
       body: JSON.stringify({ fcm_token: token }),
@@ -219,11 +235,12 @@ export const prescriptionApi = {
       headers["Authorization"] = `Bearer ${token}`;
     }
 
-    const response = await fetch(`${API_BASE_URL}/api/upload-prescription`, {
+    // Upload may take longer — use 60s timeout
+    const response = await fetchWithTimeout(`${API_BASE_URL}/api/upload-prescription`, {
       method: "POST",
       headers,
       body: formData,
-    });
+    }, 60_000);
 
     const result = await response.json();
 
@@ -238,7 +255,7 @@ export const prescriptionApi = {
   },
 
   async getUserSchedules(userId: string): Promise<Schedule[]> {
-    const response = await fetch(`${API_BASE_URL}/api/user/${userId}/schedules`, {
+    const response = await fetchWithTimeout(`${API_BASE_URL}/api/user/${userId}/schedules`, {
       headers: getAuthHeaders(),
     });
 
@@ -250,7 +267,7 @@ export const prescriptionApi = {
   },
 
   async getUserPrescriptions(userId: string): Promise<Prescription[]> {
-    const response = await fetch(`${API_BASE_URL}/api/user/${userId}/prescriptions`, {
+    const response = await fetchWithTimeout(`${API_BASE_URL}/api/user/${userId}/prescriptions`, {
       headers: getAuthHeaders(),
     });
 
@@ -262,7 +279,7 @@ export const prescriptionApi = {
   },
 
   async toggleSchedule(scheduleId: string, enabled: boolean): Promise<{ success: boolean; message: string }> {
-    const response = await fetch(`${API_BASE_URL}/api/toggle-schedule`, {
+    const response = await fetchWithTimeout(`${API_BASE_URL}/api/toggle-schedule`, {
       method: "POST",
       headers: getAuthHeaders(),
       body: JSON.stringify({ schedule_id: scheduleId, enabled }),
@@ -278,7 +295,7 @@ export const prescriptionApi = {
   },
 
   async deleteSchedule(scheduleId: string): Promise<{ success: boolean; message: string }> {
-    const response = await fetch(`${API_BASE_URL}/api/schedule/${scheduleId}`, {
+    const response = await fetchWithTimeout(`${API_BASE_URL}/api/schedule/${scheduleId}`, {
       method: "DELETE",
       headers: getAuthHeaders(),
     });
@@ -307,7 +324,7 @@ export const prescriptionApi = {
       };
     }
   ): Promise<{ success: boolean; message: string; schedule: Schedule }> {
-    const response = await fetch(`${API_BASE_URL}/api/schedule/${scheduleId}`, {
+    const response = await fetchWithTimeout(`${API_BASE_URL}/api/schedule/${scheduleId}`, {
       method: "PUT",
       headers: getAuthHeaders(),
       body: JSON.stringify(data),
@@ -323,7 +340,7 @@ export const prescriptionApi = {
   },
 
   async clearHistory(userId: string): Promise<{ success: boolean; message: string; prescriptions_deleted: number; schedules_deleted: number }> {
-    const response = await fetch(`${API_BASE_URL}/api/user/${userId}/prescriptions`, {
+    const response = await fetchWithTimeout(`${API_BASE_URL}/api/user/${userId}/prescriptions`, {
       method: "DELETE",
       headers: getAuthHeaders(),
     });
