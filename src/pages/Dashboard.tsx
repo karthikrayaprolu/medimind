@@ -197,6 +197,16 @@ const Dashboard = () => {
   // Schedule local notifications for offline medication reminders
   useLocalNotifications(schedules, notificationsEnabled);
 
+  // Auto-persist schedules to localStorage on every state change
+  // so local notifications always use the latest data (even offline)
+  useEffect(() => {
+    if (schedules.length > 0) {
+      try {
+        localStorage.setItem("medimind-schedules-cache", JSON.stringify(schedules));
+      } catch { /* storage full — non-critical */ }
+    }
+  }, [schedules]);
+
   // Scroll to top when changing tabs to prevent bottom nav from being scrolled out of view
   useEffect(() => {
     window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -249,10 +259,6 @@ const Dashboard = () => {
       setPrescriptions(prescriptionsData.sort((a, b) => 
         new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
       ));
-      // Persist schedules to localStorage for offline access
-      try {
-        localStorage.setItem("medimind-schedules-cache", JSON.stringify(sortedSchedules));
-      } catch { /* storage full — non-critical */ }
     } catch (error) {
       console.error("Failed to load data:", error);
     } finally {
@@ -326,18 +332,22 @@ const Dashboard = () => {
     scheduleId: string,
     currentState: boolean
   ) => {
+    // Optimistic local update so notification schedule changes immediately
+    const previousSchedules = schedules;
+    setSchedules(
+      schedules.map((s) =>
+        s._id === scheduleId ? { ...s, enabled: !currentState } : s
+      )
+    );
     try {
       await prescriptionApi.toggleSchedule(scheduleId, !currentState);
-      setSchedules(
-        schedules.map((s) =>
-          s._id === scheduleId ? { ...s, enabled: !currentState } : s
-        )
-      );
       toast({
         title: currentState ? "Reminder paused" : "Reminder activated",
         description: `${currentState ? "Paused" : "Active"} for this medication`,
       });
     } catch (error) {
+      // Revert on failure
+      setSchedules(previousSchedules);
       toast({
         title: "Action failed",
         description:
@@ -391,24 +401,28 @@ const Dashboard = () => {
       return;
     }
     setIsSavingEdit(true);
+
+    // Optimistic local update — immediately re-schedule local notifications
+    // so the new time is picked up even if the network call is slow
+    const previousSchedules = schedules;
+    const updatedSchedules = schedules.map((s) =>
+      s._id === editingSchedule._id ? { ...s, ...editForm } : s
+    );
+    setSchedules(updatedSchedules);
+    setEditingSchedule(null);
+
     try {
-      const result = await prescriptionApi.updateSchedule(
+      await prescriptionApi.updateSchedule(
         editingSchedule._id,
         editForm
       );
-      setSchedules(
-        schedules.map((s) =>
-          s._id === editingSchedule._id
-            ? { ...s, ...editForm }
-            : s
-        )
-      );
-      setEditingSchedule(null);
       toast({
         title: "Schedule updated",
         description: `${editForm.medicine_name} has been updated`,
       });
     } catch (error) {
+      // Revert optimistic update on failure
+      setSchedules(previousSchedules);
       toast({
         title: "Update failed",
         description:
