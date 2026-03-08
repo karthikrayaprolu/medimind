@@ -9,12 +9,19 @@ import android.view.Window;
 import android.webkit.WebSettings;
 import android.webkit.WebView;
 
+import androidx.core.splashscreen.SplashScreen;
+
 import com.getcapacitor.BridgeActivity;
 
 public class MainActivity extends BridgeActivity {
 
     @Override
     public void onCreate(Bundle savedInstanceState) {
+        // Required when the launch theme uses Theme.SplashScreen as parent.
+        // Without this call the native splash never dismisses and the WebView
+        // stays hidden behind the splash background on Android 12+.
+        SplashScreen.installSplashScreen(this);
+
         // Make status bar fully transparent before anything renders
         Window window = getWindow();
         window.setStatusBarColor(Color.TRANSPARENT);

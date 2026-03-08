@@ -25,5 +25,9 @@
         <item name="android:statusBarColor">@android:color/transparent</item>
         <item name="android:windowLightStatusBar">true</item>
         <item name="android:windowDrawsSystemBarBackgrounds">true</item>
+        <!-- Must be set so the Activity transitions to the real app theme once
+             the splash is dismissed; without this the splash background drawable
+             stays on top of the WebView and the app appears permanently stuck. -->
+        <item name="postSplashScreenTheme">@style/AppTheme.NoActionBar</item>
     </style>
 </resources>
